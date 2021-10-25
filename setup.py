@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="biapol-taurus",
-    version="0.1.0",
+    version="0.1.1",
     author="Robert Haase",
     author_email="robert.haase@tu-dresden.de",
     description="Bio-image analysis tools for the taurus cluster at TU Dresden",
@@ -15,7 +15,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     include_package_data=True,
     install_requires=["numpy!=1.19.4", "stackview"],
-    python_requires='>=3.7',
+    python_requires='>=3.6',
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
