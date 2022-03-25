@@ -38,7 +38,8 @@ class ProjectFileTransfer:
         self.dtcp = "/sw/taurus/tools/slurmtools/default/bin/dtcp"
         self.dtrm = "/sw/taurus/tools/slurmtools/default/bin/dtrm"
 
-    def save_file(self, filename: str, timeout_in_s: float = -1, wait_for_finish: bool = False):
+    def save_file(self, filename: str, timeout_in_s: float = -1,
+                  wait_for_finish: bool = False):
         """
         Transfer a filename from the project space to a mounted fileserver.
 
@@ -100,16 +101,13 @@ class ProjectFileTransfer:
             return
 
         # start a process, submitting the copy-job
-        output = self._run_command([self.dtcp, '-r', source_file, self.target_project_space])
-        # print(output)
-
-        # retrieve JOB ID from the output
-        temp = str(output).split(" ")
-        job_ID = temp[-1]
-        # print("Job ID", job_ID)
+        self._run_command([self.dtcp, '-r', source_file,
+                           self.target_project_space])
 
         if wait_for_finish:
-            self._check_arrival(source_file, target_file, timeout_in_s=timeout_in_s)
+            new_location = self._check_arrival(source_file, target_file,
+                                               timeout_in_s=timeout_in_s)
+            return new_location
 
     def list_files(self):
         """
