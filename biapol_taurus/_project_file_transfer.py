@@ -65,8 +65,10 @@ class ProjectFileTransfer:
             return
 
         # start a process, submitting the copy-job
-        output = self._run_command([self.dtcp, '-r', source, target])
-        print(output)
+        self._run_command([self.dtcp, '-r', source, target])
+
+        self._check_arrival(source, target, timeout_in_s=timeout_in_s,
+                            wait_for_finish=wait_for_finish)
 
     def get_file(self, filename: str, timeout_in_s: float = -1, wait_for_finish: bool = True):
         """
@@ -106,23 +108,8 @@ class ProjectFileTransfer:
         job_ID = temp[-1]
         # print("Job ID", job_ID)
 
-        # wait and check repeatedly if the file arrived
-        print("Waiting .", end='', flush=True)
-        import time
-        start_time = time.time()
-        while (True):
-            if Path(target_file).is_file():
-                print("")
-                return target_file  # successfully transferred file
-
-            if timeout_in_s > 0 and (time.time() - start_time) > timeout_in_s:
-                print("")
-                warnings.warn("\nTimeout while transferring file:\n" + source_file + "\n->\n" + target_file)
-                return None
-
-            print(".", end='', flush=True)
-            time.sleep(0.5)  # sleep for half a second
-
+        self._check_arrival(source_file, target_file, timeout_in_s=timeout_in_s,
+                            wait_for_finish=wait_for_finish)
 
     def list_files(self):
         """
@@ -184,6 +171,28 @@ class ProjectFileTransfer:
             print(".", end='', flush=True)
             time.sleep(0.5)  # sleep for half a second
 
+    def _check_arrival(self,
+                       source_file: str,
+                       target_file: str,
+                       timeout_in_s: float = -1,
+                       wait_for_finish: bool = True):
+
+        # wait and check repeatedly if the file arrived
+        print("Waiting .", end='', flush=True)
+        import time
+        start_time = time.time()
+        while (True):
+            if Path(target_file).is_file():
+                print("")
+                return target_file  # successfully transferred file
+
+            if timeout_in_s > 0 and (time.time() - start_time) > timeout_in_s:
+                print("")
+                warnings.warn("\nTimeout while transferring file:\n" + source_file + "\n->\n" + target_file)
+                return None
+
+            print(".", end='', flush=True)
+            time.sleep(0.5)  # sleep for half a second
 
     def _run_command(self, command):
         """
