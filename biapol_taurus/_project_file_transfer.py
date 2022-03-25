@@ -1,6 +1,7 @@
 from pathlib import Path
 import warnings
 import subprocess
+import os
 
 
 class ProjectFileTransfer:
@@ -37,6 +38,35 @@ class ProjectFileTransfer:
         self.dtcp = "/sw/taurus/tools/slurmtools/default/bin/dtcp"
         self.dtrm = "/sw/taurus/tools/slurmtools/default/bin/dtrm"
 
+    def save_file(self, filename: str, timeout_in_s: float = -1, wait_for_finish: bool = True):
+        """
+        Transfer a filename from the project space to a mounted fileserver.
+
+        Parameters
+        ----------
+        filename : str
+            DESCRIPTION.
+        timeout_in_s : float, optional
+            DESCRIPTION. The default is -1.
+        wait_for_finish : bool, optional
+            DESCRIPTION. The default is True.
+
+        Returns
+        -------
+        None.
+        """
+        filename = os.path.normpath(filename)
+        source = os.path.join(self.target_project_space, filename)
+        target = os.path.join(self.source_mount, filename)
+        print(source, target)
+
+        if os.path.exists(target):
+            warnings.warn("\nFile exists already: " + target)
+            return
+
+        # start a process, submitting the copy-job
+        output = self._run_command([self.dtcp, '-r', source, target])
+        print(output)
 
     def get_file(self, filename: str, timeout_in_s: float = -1, wait_for_finish: bool = True):
         """
