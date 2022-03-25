@@ -67,8 +67,8 @@ class ProjectFileTransfer:
         # start a process, submitting the copy-job
         self._run_command([self.dtcp, '-r', source, target])
 
-        self._check_arrival(source, target, timeout_in_s=timeout_in_s,
-                            wait_for_finish=wait_for_finish)
+        if wait_for_finish:
+            self._check_arrival(source, target, timeout_in_s=timeout_in_s)
 
     def get_file(self, filename: str, timeout_in_s: float = -1, wait_for_finish: bool = True):
         """
@@ -108,8 +108,8 @@ class ProjectFileTransfer:
         job_ID = temp[-1]
         # print("Job ID", job_ID)
 
-        self._check_arrival(source_file, target_file, timeout_in_s=timeout_in_s,
-                            wait_for_finish=wait_for_finish)
+        if wait_for_finish:
+            self._check_arrival(source_file, target_file, timeout_in_s=timeout_in_s)
 
     def list_files(self):
         """
@@ -174,8 +174,7 @@ class ProjectFileTransfer:
     def _check_arrival(self,
                        source_file: str,
                        target_file: str,
-                       timeout_in_s: float = -1,
-                       wait_for_finish: bool = True):
+                       timeout_in_s: float = -1):
 
         # wait and check repeatedly if the file arrived
         print("Waiting .", end='', flush=True)
