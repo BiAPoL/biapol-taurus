@@ -57,7 +57,10 @@ class ProjectFileTransfer:
         None.
         """
         filename = os.path.normpath(filename)
-        source = os.path.join(self.target_project_space, filename)
+        if not self.target_project_space in filename:
+            source = os.path.join(self.target_project_space, filename)
+        else:
+            source = filename
         target = os.path.join(self.source_mount, filename)
         print(source, target)
 
