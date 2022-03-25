@@ -38,7 +38,7 @@ class ProjectFileTransfer:
         self.dtcp = "/sw/taurus/tools/slurmtools/default/bin/dtcp"
         self.dtrm = "/sw/taurus/tools/slurmtools/default/bin/dtrm"
 
-    def save_file(self, filename: str, timeout_in_s: float = -1, wait_for_finish: bool = True):
+    def save_file(self, filename: str, timeout_in_s: float = -1, wait_for_finish: bool = False):
         """
         Transfer a filename from the project space to a mounted fileserver.
 
