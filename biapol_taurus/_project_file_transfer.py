@@ -70,6 +70,7 @@ class ProjectFileTransfer:
             raise IOError(
                 'Could not get file from fileserver: {}'.format(
                     str(source_file)))
+        return target_file
 
     def list_files(self):
         """
