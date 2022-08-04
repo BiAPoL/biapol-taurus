@@ -27,12 +27,8 @@ class ProjectFileTransfer:
         target_project : str
             Project space on the cluster, e.g. /projects/p_my_project/
         """
-        if not source_mount.endswith("/"):
-            source_mount = source_mount + "/"
-        if not target_project_space.endswith("/"):
-            target_project_space = target_project_space + "/"
-        self.source_mount = source_mount
-        self.target_project_space = target_project_space
+        self.source_mount = Path(source_mount)
+        self.target_project_space = Path(target_project_space)
         self.dm = Datamover(path_to_exe=dm_path)
 
     def get_file(self, filename: str, timeout_in_s: float = -1,
@@ -57,16 +53,17 @@ class ProjectFileTransfer:
         .. [0] https://doc.zih.tu-dresden.de/data_transfer/datamover/
         """
         filename = filename.replace("\\", "/")
-        source_file = self.source_mount + filename
+        source_file = self.source_mount / filename
         filename_only = filename.split("/")[-1]
-        target_file = self.target_project_space + filename_only
+        target_file = self.target_project_space / filename_only
 
         if Path(target_file).is_file():
-            warnings.warn("\nFile exists already: " + target_file)
+            warnings.warn("\nFile exists already: " + str(target_file))
             return
 
         # start a process, submitting the copy-job
-        proc = self.dm.dtcp('-r', source_file, self.target_project_space)
+        proc = self.dm.dtcp('-r', str(source_file),
+                            str(self.target_project_space))
         exit_code = waitfor(proc)
         if exit_code > 0:
             out, err = proc.communicate()
@@ -82,12 +79,7 @@ class ProjectFileTransfer:
         -------
         List of strings
         """
-        # print(self._run_command(["ls", self.target_project_space, "-l"]))
-        from os import listdir
-        from os.path import isfile, join
-
-        return [f for f in listdir(self.target_project_space) if isfile(
-            join(self.target_project_space, f))]
+        return sorted(self.target_project_space.glob('**/*'))
 
     def remove_file(self, filename, timeout_in_s: float = 20,
                     wait_for_finish: bool = False):
@@ -111,9 +103,11 @@ class ProjectFileTransfer:
 
         """
         if not filename.startswith(self.target_project_space):
-            filename = self.target_project_space + filename
+            filename = self.target_project_space / filename
+        else:
+            filename = Path(filename)
 
-        proc = self.dm.dtcp('-r', source_file, self.target_project_space)
+        proc = self.dm.dtrm('-r', str(filename))
 
         if not wait_for_finish:
             return True
