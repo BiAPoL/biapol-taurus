@@ -153,8 +153,7 @@ class ProjectFileTransfer:
         if not full_path.is_file():
             full_path = self.target_project_space / filename
             if not full_path.is_file():
-                self.get_file(filename=filename)
-                full_path = self.target_project_space / filename
+                full_path = self.get_file(filename=filename)
         return imread(str(full_path), *args, **kw)
 
     def imsave(self, filename, data, *args, project: bool = True, **kw):
