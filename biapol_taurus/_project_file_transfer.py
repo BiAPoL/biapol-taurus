@@ -1,6 +1,5 @@
 from multiprocessing.connection import wait
 from pathlib import Path
-import subprocess
 from taurus_datamover import Datamover, waitfor
 import warnings
 
