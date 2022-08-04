@@ -56,7 +56,8 @@ class ProjectFileTransfer:
         """
         filename = filename.replace("\\", "/")
         source_file = self.source_mount / filename
-        target_file = self.target_project_space / filename
+        # if we use dtcp, we cannot create subdirectories in the target
+        target_file = self.target_project_space / source_file.name
 
         if Path(target_file).is_file():
             warnings.warn("\nFile exists already: " + str(target_file))
@@ -153,7 +154,9 @@ class ProjectFileTransfer:
         if not full_path.is_file():
             full_path = self.target_project_space / filename
             if not full_path.is_file():
-                full_path = self.get_file(filename=filename)
+                full_path = self.target_project_space / full_path.name
+                if not full_path.is_file():
+                    full_path = self.get_file(filename=filename)
         return imread(str(full_path), *args, **kw)
 
     def imsave(self, filename, data, *args, project: bool = True, **kw):
