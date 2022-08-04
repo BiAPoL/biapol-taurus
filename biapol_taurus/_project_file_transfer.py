@@ -118,7 +118,7 @@ class ProjectFileTransfer:
         False if the timeout was reached
 
         """
-        if not filename.startswith(self.target_project_space):
+        if not filename.startswith(str(self.target_project_space)):
             filename = self.target_project_space / filename
         else:
             filename = Path(filename)
