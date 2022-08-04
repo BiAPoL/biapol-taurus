@@ -1,10 +1,9 @@
-from multiprocessing.connection import wait
-from pathlib import Path
-from taurus_datamover import Datamover, waitfor
+import os
 import warnings
 import tempfile
-import os
+from pathlib import Path
 from skimage.io import imread, imsave
+from taurus_datamover import Datamover, waitfor
 
 
 class ProjectFileTransfer:
