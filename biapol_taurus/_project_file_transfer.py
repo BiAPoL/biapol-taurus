@@ -56,8 +56,7 @@ class ProjectFileTransfer:
         """
         filename = filename.replace("\\", "/")
         source_file = self.source_mount / filename
-        filename_only = filename.split("/")[-1]
-        target_file = self.target_project_space / filename_only
+        target_file = self.target_project_space / filename
 
         if Path(target_file).is_file():
             warnings.warn("\nFile exists already: " + str(target_file))
