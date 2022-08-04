@@ -60,7 +60,8 @@ class ProjectFileTransfer:
         target_file = self.target_project_space / source_file.name
 
         if Path(target_file).is_file():
-            warnings.warn("\nFile exists already: " + str(target_file))
+            print('\n')
+            warnings.warn('File already exists: ' + str(target_file))
             return
 
         # start a process, submitting the copy-job
