@@ -1,6 +1,7 @@
 from pathlib import Path
 import warnings
 import subprocess
+from taurus_datamover import Datamover, waitfor
 
 
 class ProjectFileTransfer:
@@ -14,7 +15,8 @@ class ProjectFileTransfer:
 
     """
 
-    def __init__(self, source_mount: str, target_project_space: str):
+    def __init__(self, source_mount: str, target_project_space: str,
+                 dm_path: str = '/sw/taurus/tools/slurmtools/default/bin/'):
         """
         Sets up a project-space - fileserver-mount connection.
 
@@ -31,14 +33,10 @@ class ProjectFileTransfer:
             target_project_space = target_project_space + "/"
         self.source_mount = source_mount
         self.target_project_space = target_project_space
+        self.dm = Datamover(path_to_exe=dm_path)
 
-        # todo: check if those folders exist
-
-        self.dtcp = "/sw/taurus/tools/slurmtools/default/bin/dtcp"
-        self.dtrm = "/sw/taurus/tools/slurmtools/default/bin/dtrm"
-
-
-    def get_file(self, filename: str, timeout_in_s: float = -1, wait_for_finish: bool = True):
+    def get_file(self, filename: str, timeout_in_s: float = -1,
+                 wait_for_finish: bool = True):
         """
         Transfers a file from a mounted fileserver share to the project space.
 
@@ -46,7 +44,7 @@ class ProjectFileTransfer:
         ----------
         filename: str
             filename as on the fileserver, if the file is stored on the fileserver under
-            \\fileserver\mount\folder\data.txt
+            \\fileserver\\mount\folder\\data.txt
             You need to pass 'folder/data.txt' here.
         timeout_in_s: float, optional (default: endless)
             Timeout in seconds. This process will wait a bit and check repeatedly if the
@@ -68,31 +66,13 @@ class ProjectFileTransfer:
             return
 
         # start a process, submitting the copy-job
-        output = self._run_command([self.dtcp, '-r', source_file, self.target_project_space])
-        # print(output)
-
-        # retrieve JOB ID from the output
-        temp = str(output).split(" ")
-        job_ID = temp[-1]
-        # print("Job ID", job_ID)
-
-        # wait and check repeatedly if the file arrived
-        print("Waiting .", end='', flush=True)
-        import time
-        start_time = time.time()
-        while (True):
-            if Path(target_file).is_file():
-                print("")
-                return target_file  # successfully transferred file
-
-            if timeout_in_s > 0 and (time.time() - start_time) > timeout_in_s:
-                print("")
-                warnings.warn("\nTimeout while transferring file:\n" + source_file + "\n->\n" + target_file)
-                return None
-
-            print(".", end='', flush=True)
-            time.sleep(0.5)  # sleep for half a second
-
+        proc = self.dm.dtcp('-r', source_file, self.target_project_space)
+        exit_code = waitfor(proc)
+        if exit_code > 0:
+            out, err = proc.communicate()
+            raise IOError(
+                'copy operation exited with error: {}\nand output: {}'.format(
+                    err, out))
 
     def list_files(self):
         """
@@ -106,10 +86,11 @@ class ProjectFileTransfer:
         from os import listdir
         from os.path import isfile, join
 
-        return [f for f in listdir(self.target_project_space) if isfile(join(self.target_project_space, f))]
+        return [f for f in listdir(self.target_project_space) if isfile(
+            join(self.target_project_space, f))]
 
-
-    def remove_file(self, filename, timeout_in_s: float = 20, wait_for_finish: bool = False):
+    def remove_file(self, filename, timeout_in_s: float = 20,
+                    wait_for_finish: bool = False):
         """
         Removes a given file from the project space.
 
@@ -132,55 +113,14 @@ class ProjectFileTransfer:
         if not filename.startswith(self.target_project_space):
             filename = self.target_project_space + filename
 
-        self._run_command([self.dtrm, filename])
+        proc = self.dm.dtcp('-r', source_file, self.target_project_space)
 
         if not wait_for_finish:
             return True
 
-        print("Waiting .", end='', flush=True)
-        import time
-        start_time = time.time()
-
-        while (True):
-            if not Path(filename).is_file():
-                print("")
-                return True  # successfully transferred file
-
-            if timeout_in_s > 0 and (time.time() - start_time) > timeout_in_s:
-                print("")
-                warnings.warn("\nTimeout while deleting file:\n" + filename)
-                return False
-
-            print(".", end='', flush=True)
-            time.sleep(0.5)  # sleep for half a second
-
-
-    def _run_command(self, command):
-        """
-        Execute a command on the terminal and return its output.
-
-        Parameters
-        ----------
-        command : str or list of str
-            The command to be executed, e.g. "ls -l" or ["ls", "-l"]
-
-        Returns
-        -------
-        str, stdout output of the command
-        """
-        if isinstance(command, str):
-            command = command.split(" ")
-
-        # print(command)
-
-        proc = subprocess.Popen(command, stdout=subprocess.PIPE)
-
-        # collect std output from the process
-        output = []
-        while True:
-            line = proc.stdout.readline()
-            if not line:
-                break
-            # the real code does filtering her
-            output.append((line.rstrip()).decode("utf-8"))
-        return "\n".join(output)
+        exit_code = waitfor(proc)
+        if exit_code > 0:
+            out, err = proc.communicate()
+            raise IOError(
+                'delete operation exited with error: {}\nand output: {}'.format(
+                    err, out))
