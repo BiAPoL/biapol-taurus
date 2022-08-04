@@ -2,6 +2,9 @@ from multiprocessing.connection import wait
 from pathlib import Path
 from taurus_datamover import Datamover, waitfor
 import warnings
+import tempfile
+import os
+from skimage.io import imread, imsave
 
 
 class ProjectFileTransfer:
@@ -66,10 +69,9 @@ class ProjectFileTransfer:
                             str(self.target_project_space))
         exit_code = waitfor(proc)
         if exit_code > 0:
-            out, err = proc.communicate()
             raise IOError(
-                'copy operation exited with error: {}\nand output: {}'.format(
-                    err, out))
+                'Could not get file from fileserver: {}'.format(
+                    str(source_file)))
 
     def list_files(self):
         """
@@ -129,7 +131,66 @@ class ProjectFileTransfer:
 
         exit_code = waitfor(proc)
         if exit_code > 0:
-            out, err = proc.communicate()
-            raise IOError(
-                'delete operation exited with error: {}\nand output: {}'.format(
-                    err, out))
+            raise IOError('Could not remove file: {}'.format(str(filename)))
+
+    def imread(self, filename, *args, **kw):
+        """
+        Load an image from a file.
+
+        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
+
+        Parameters
+        ----------
+        filename : str
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space or to source_mount.
+        all other arguments are passed down to [scikit-image.io.imread](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imread)
+
+        Returns
+        -------
+        ndarray containing the image data
+
+        """
+        full_path = Path(filename)
+        if not full_path.is_file():
+            full_path = self.target_project_space / filename
+            if not full_path.is_file():
+                self.get_file(filename=filename)
+                full_path = self.target_project_space / filename
+        return imread(str(full_path), *args, **kw)
+
+    def imsave(self, filename, data, *args, project: bool = True, **kw):
+        """
+        Save an image to a file on the project space or fileserver.
+
+        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
+
+        Parameters
+        ----------
+        filename : str
+            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space or to source_mount.
+        all other arguments are passed down to [scikit-image.io.imsave](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imsave)
+        data : ndarray containing the image data
+
+        Returns
+        -------
+        result of skimage.io.imsave
+
+        """
+        full_path = Path(filename)
+
+        if os.access(full_path.parent, os.W_OK):
+            return imsave(str(full_path), data, *args, **kw)
+        else:
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                temp_file = Path(tmpdirname) / filename.name
+                output = imsave(str(temp_file), data, *args, **kw)
+                if project:
+                    proc = self.dm.dtmv(
+                        str(temp_file), str(
+                            self.target_project_space / filename))
+                else:
+                    proc = self.dm.dtmv(
+                        str(temp_file), str(
+                            self.source_mount / filename))
+                waitfor(proc)
+            return output
