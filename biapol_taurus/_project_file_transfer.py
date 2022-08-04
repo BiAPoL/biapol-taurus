@@ -89,7 +89,7 @@ class ProjectFileTransfer:
         -------
         List of strings
         """
-        proc = self.dm.dtls('-R1', str(self.target_project_space))
+        proc = self.dm.dtls('-R1', str(self.source_mount))
         exit_code = waitfor(proc)
         out, err = proc.communicate()
         if exit_code > 0:
