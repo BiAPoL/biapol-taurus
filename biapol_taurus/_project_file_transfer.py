@@ -1,5 +1,4 @@
 from pathlib import Path
-import warnings
 import subprocess
 from taurus_datamover import Datamover, waitfor
 
