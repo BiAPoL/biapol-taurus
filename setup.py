@@ -11,10 +11,9 @@ setuptools.setup(
     description="Bio-image analysis tools for the taurus cluster at TU Dresden",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/haesleinhuepf/stackview/",
-    packages=setuptools.find_packages(),
+    url="https://github.com/BiAPoL/biapol-taurus",
+    packages=setuptools.find_packages(exclude=["docs"]),
     include_package_data=True,
-    install_requires=["numpy!=1.19.4", "stackview"],
     python_requires='>=3.6',
     classifiers=[
         "Programming Language :: Python :: 3",
