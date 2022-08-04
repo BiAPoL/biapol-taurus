@@ -1,6 +1,8 @@
+from multiprocessing.connection import wait
 from pathlib import Path
 import subprocess
 from taurus_datamover import Datamover, waitfor
+import warnings
 
 
 class ProjectFileTransfer:
@@ -78,7 +80,22 @@ class ProjectFileTransfer:
         -------
         List of strings
         """
-        return sorted(self.target_project_space.glob('**/*'))
+        return [str(f) for f in sorted(self.target_project_space.glob('**/*'))]
+
+    def list_fileserver_files(self):
+        """
+        Get a list of files located in the project space
+
+        Returns
+        -------
+        List of strings
+        """
+        proc = self.dm.dtls('-R1', str(self.target_project_space))
+        exit_code = waitfor(proc)
+        out, err = proc.communicate()
+        if exit_code > 0:
+            warnings.warn('list operation exited with error: {}'.format(err))
+        return out.decode('utf-8').split("\n")
 
     def remove_file(self, filename, timeout_in_s: float = 20,
                     wait_for_finish: bool = False):
