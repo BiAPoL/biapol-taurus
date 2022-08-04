@@ -64,7 +64,7 @@ class ProjectFileTransfer:
 
         # start a process, submitting the copy-job
         proc = self.dm.dtcp('-r', str(source_file),
-                            str(self.target_project_space))
+                            str(target_file))
         exit_code = waitfor(proc)
         if exit_code > 0:
             raise IOError(
