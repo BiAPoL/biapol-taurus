@@ -32,22 +32,22 @@ class ProjectFileTransfer:
     .. [1] https://gitlab.mn.tu-dresden.de/bia-pol/taurus-datamover
     """
 
-    def __init__(self, source_mount: str, target_project_space: str,
+    def __init__(self, source_fileserver_dir: str, target_project_space_dir: str,
                  dm_path: str = '/sw/taurus/tools/slurmtools/default/bin/'):
         """
-        Sets up a project-space - fileserver-mount connection.
+        Sets up a connection between a directory on the fileserver and a directory on the project space.
 
         Parameters
         ----------
-        source_mount : str
+        source_fileserver_dir : str
             Fileserver mount on the export node, e.g. /grp/g_my_group/userdir/
         target_project : str
             Project space on the cluster, e.g. /projects/p_my_project/userdir/
         dm_path: str, optional
             the path where the datamover tools reside, by default /sw/taurus/tools/slurmtools/default/bin/
         """
-        self.source_mount = Path(source_mount)
-        self.target_project_space = Path(target_project_space)
+        self.source_fileserver_dir = Path(source_fileserver_dir)
+        self.target_project_space_dir = Path(target_project_space_dir)
         self.dm = Datamover(path_to_exe=dm_path)
         self.cache = tempfile.TemporaryDirectory()
 
@@ -60,7 +60,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space or to source_mount.
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
         all other arguments are passed down to [scikit-image.io.imread](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imread)
 
         Returns
@@ -80,7 +80,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space or to source_mount.
+            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
         all other arguments are passed down to [scikit-image.io.imsave](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imsave)
         data : ndarray containing the image data
 
@@ -100,11 +100,11 @@ class ProjectFileTransfer:
                 if project:
                     proc = self.dm.dtmv(
                         str(temp_file), str(
-                            self.target_project_space / filename))
+                            self.target_project_space_dir / filename))
                 else:
                     proc = self.dm.dtmv(
                         str(temp_file), str(
-                            self.source_mount / filename))
+                            self.source_fileserver_dir / filename))
                 waitfor(proc)
             return output
 
@@ -145,15 +145,15 @@ class ProjectFileTransfer:
         if delete:
             options.append('--delete')
         if direction == 'from_fileserver':
-            options.append(str(self.source_mount))
-            options.append(str(self.target_project_space))
+            options.append(str(self.source_fileserver_dir))
+            options.append(str(self.target_project_space_dir))
         else:
-            options.append(str(self.target_project_space))
-            options.append(str(self.source_mount))
+            options.append(str(self.target_project_space_dir))
+            options.append(str(self.source_fileserver_dir))
         dangerous = delete or overwrite_newer
-        if self.target_project_space.parent == self.target_project_space.parents[
-                -2] and self.source_mount.parent == self.source_mount.parents[-2]:
-            # syncing the entire fileserver directly into target_project_space
+        if self.target_project_space_dir.parent == self.target_project_space_dir.parents[
+                -2] and self.source_fileserver_dir.parent == self.source_fileserver_dir.parents[-2]:
+            # syncing the entire fileserver directly into target_project_space_dir
             # is dangerous because it might affect data of other users of the
             # same project space
             dangerous = True
@@ -177,7 +177,7 @@ class ProjectFileTransfer:
                  wait_for_finish: bool = True) -> Path:
         '''Ensures that the computing node has access to a file. If necessary, the file is retrieved from a mounted fileserver share.
 
-        Before transferring the file, local directories are checked in the following order: 1. filename (in case the user gave a path to an accessible file) 2. (temporary cache directory)/file.name, 3. /target_project_space/filename (in case the user gave a path relative to the target project space). Only if no file of the same name is found, the file is retrieved from the fileserver.
+        Before transferring the file, local directories are checked in the following order: 1. filename (in case the user gave a path to an accessible file) 2. (temporary cache directory)/file.name, 3. /target_project_space_dir/filename (in case the user gave a path relative to the target project space). Only if no file of the same name is found, the file is retrieved from the fileserver.
 
         Parameters
         ----------
@@ -209,13 +209,13 @@ class ProjectFileTransfer:
             else:
                 # then check if the user meant a path relative to the target
                 # project
-                full_path = self.target_project_space / filename
+                full_path = self.target_project_space_dir / filename
                 if full_path.is_file():
                     return full_path
         # if we can't find the file locally, retrieve it from the fileserver
         # (into the cache)
         filename = filename.replace("\\", "/")
-        source_file = self.source_mount / filename
+        source_file = self.source_fileserver_dir / filename
         # copy the file into the cache
         target_file = Path(self.cache.name) / source_file.name
 
@@ -237,7 +237,8 @@ class ProjectFileTransfer:
         -------
         List of strings
         """
-        return [str(f) for f in sorted(self.target_project_space.glob('**/*'))]
+        return [str(f)
+                for f in sorted(self.target_project_space_dir.glob('**/*'))]
 
     def list_fileserver_files(self, timeout_in_s: float = 30):
         """
@@ -247,7 +248,7 @@ class ProjectFileTransfer:
         -------
         List of strings
         """
-        proc = self.dm.dtls('-R1', str(self.source_mount))
+        proc = self.dm.dtls('-R1', str(self.source_fileserver_dir))
         exit_code = waitfor(
             proc,
             timeout_in_s=timeout_in_s,
@@ -275,8 +276,8 @@ class ProjectFileTransfer:
         False if the timeout was reached
 
         """
-        if not str(filename).startswith(str(self.target_project_space)):
-            filename = self.target_project_space / filename
+        if not str(filename).startswith(str(self.target_project_space_dir)):
+            filename = self.target_project_space_dir / filename
         else:
             filename = Path(filename)
 
