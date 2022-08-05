@@ -109,9 +109,10 @@ class ProjectFileTransfer:
         return proc.communicate()
 
     def get_file(self, filename: str, timeout_in_s: float = -1,
-                 wait_for_finish: bool = True):
-        """
-        Transfers a file from a mounted fileserver share to the project space.
+                 wait_for_finish: bool = True) -> Path:
+        '''Ensures that the computing node has access to a file. If necessary, the file is retrieved from a mounted fileserver share.
+
+        Before transferring the file, local directories are checked in the following order: 1. filename (in case the user gave a path to an accessible file) 2. /tmp/(temporary directory)/file.name, 3. /target_project_space/filename (in case the user gave a path relative to the target project space). Only if no file of the same name is found, the file is retrieved from the fileserver.
 
         Parameters
         ----------
@@ -125,24 +126,33 @@ class ProjectFileTransfer:
         wait_for_finish : bool, optional (default: True)
             If True, will wait until the requested file arrived.
 
-        See also
-        --------
-        .. [0] https://doc.zih.tu-dresden.de/data_transfer/datamover/
+        Returns
+        -------
+        Path
+            The path where the file is accessible to the computing node
 
-        """
-
-        # ToDo change behavior of get_file so that it tries to get the file on
-        # the cluster first and if that fails, copys the file from the
-        # fileserver to /tmp
+        '''
+        # first check if the file as given by the user exists locally
+        full_path = Path(filename)
+        if full_path.is_file():
+            return full_path
+        else:
+            # then check, if the file exists on /tmp
+            full_path = Path(self.tmp) / full_path.name
+            if full_path.is_file():
+                return full_path
+            else:
+                # then check if the user meant a path relative to the target
+                # project
+                full_path = self.target_project_space / filename
+                if full_path.is_file():
+                    return full_path
+        # if we can't find the file locally, retrieve it from the fileserver
+        # (into /tmp)
         filename = filename.replace("\\", "/")
         source_file = self.source_mount / filename
-        # if we use dtcp, we cannot create subdirectories in the target
-        target_file = self.target_project_space / source_file.name
-
-        if Path(target_file).is_file():
-            print('\n')
-            warnings.warn('File already exists: ' + str(target_file))
-            return
+        # copy the file into /tmp
+        target_file = Path(self.tmp) / source_file.name
 
         # start a process, submitting the copy-job
         proc = self.dm.dtcp('-r', str(source_file),
@@ -214,6 +224,12 @@ class ProjectFileTransfer:
         if exit_code > 0:
             raise IOError('Could not remove file: {}'.format(str(filename)))
 
+    def cleanup_tmp(self):
+        '''Delete all temporary data and create a new, empty temp directory.
+        '''
+        self.tmp.cleanup()
+        self.tmp = tempfile.TemporaryDirectory()
+
     def imread(self, filename, *args, **kw):
         """
         Load an image from a file.
@@ -231,13 +247,7 @@ class ProjectFileTransfer:
         ndarray containing the image data
 
         """
-        full_path = Path(filename)
-        if not full_path.is_file():
-            full_path = self.target_project_space / filename
-            if not full_path.is_file():
-                full_path = self.target_project_space / full_path.name
-                if not full_path.is_file():
-                    full_path = self.get_file(filename=filename)
+        full_path = self.get_file(filename)
         return imread(str(full_path), *args, **kw)
 
     def imsave(self, filename, data, *args, project: bool = True, **kw):
@@ -278,8 +288,6 @@ class ProjectFileTransfer:
             return output
 
     def __del__(self):
-        '''
-        clean up the temporary directory when the object is deleted
-
+        '''Clean up the temporary directory when the object is deleted
         '''
         self.tmp.cleanup()
