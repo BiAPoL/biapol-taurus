@@ -7,8 +7,7 @@ from taurus_datamover import Datamover, waitfor
 
 
 class DangerousOperationException(IOError):
-    '''
-    Exception that is raised when a dangerous operatino is called without im_sure=True
+    '''Exception that is raised when a dangerous operatino is called without im_sure=True
     '''
     pass
 
@@ -17,11 +16,20 @@ class ProjectFileTransfer:
     """
     Connects a project space on the cluster with a fileserver share via an export node.
 
-    After initializing, source mount and target project space, you can
+    After initializing, source mount and target project space, you can:
+    * `imread` an image file from the fileserver
+    * `imsave` an image file to the fileserver
+    * `sync_with_fileserver` Synchronize a whole directory tree with the fileserver (using rsync).
     * `get_file`s to the project space,
     * `list_files` in the project space and
+    * `list_fileserver_files` list files on the fileserver
     * `remove_file`s from the project space.
+    * `cleanup_tmp`
 
+    See also
+    --------
+    .. [0] https://doc.zih.tu-dresden.de/data_transfer/datamover/
+    .. [1] https://gitlab.mn.tu-dresden.de/bia-pol/taurus-datamover
     """
 
     def __init__(self, source_mount: str, target_project_space: str,
@@ -43,9 +51,66 @@ class ProjectFileTransfer:
         self.dm = Datamover(path_to_exe=dm_path)
         self.tmp = tempfile.TemporaryDirectory()
 
+    def imread(self, filename, *args, **kw):
+        """
+        Load an image from a file.
+
+        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
+
+        Parameters
+        ----------
+        filename : str
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space or to source_mount.
+        all other arguments are passed down to [scikit-image.io.imread](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imread)
+
+        Returns
+        -------
+        ndarray containing the image data
+
+        """
+        full_path = self.get_file(filename)
+        return imread(str(full_path), *args, **kw)
+
+    def imsave(self, filename, data, *args, project: bool = True, **kw):
+        """
+        Save an image to a file on the fileserver or any other location you have write access from a node.
+
+        Be aware that, unlike the login node, computing nodes don't have write access to the project space.
+
+        Parameters
+        ----------
+        filename : str
+            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space or to source_mount.
+        all other arguments are passed down to [scikit-image.io.imsave](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imsave)
+        data : ndarray containing the image data
+
+        Returns
+        -------
+        result of skimage.io.imsave
+
+        """
+        full_path = Path(filename)
+
+        if os.access(full_path.parent, os.W_OK):
+            return imsave(str(full_path), data, *args, **kw)
+        else:
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                temp_file = Path(tmpdirname) / filename.name
+                output = imsave(str(temp_file), data, *args, **kw)
+                if project:
+                    proc = self.dm.dtmv(
+                        str(temp_file), str(
+                            self.target_project_space / filename))
+                else:
+                    proc = self.dm.dtmv(
+                        str(temp_file), str(
+                            self.source_mount / filename))
+                waitfor(proc)
+            return output
+
     def sync_with_fileserver(self, direction: str = 'from fileserver', delete: bool = False,
                              overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
-        '''Synchronize a whole directory tree with the fileserver (using rsync). Does not delete files, but overwrites existing files.
+        '''Synchronize a whole directory tree with the fileserver (using rsync). By default, Does not delete files, but overwrites existing files if they are older.
 
         By default, we sync from the fileserver to the project space (direction='from fileserver'). If you want to synchronize from the project space to the fileserver, use direction='to fileserver'.
 
@@ -229,63 +294,6 @@ class ProjectFileTransfer:
         '''
         self.tmp.cleanup()
         self.tmp = tempfile.TemporaryDirectory()
-
-    def imread(self, filename, *args, **kw):
-        """
-        Load an image from a file.
-
-        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
-
-        Parameters
-        ----------
-        filename : str
-            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space or to source_mount.
-        all other arguments are passed down to [scikit-image.io.imread](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imread)
-
-        Returns
-        -------
-        ndarray containing the image data
-
-        """
-        full_path = self.get_file(filename)
-        return imread(str(full_path), *args, **kw)
-
-    def imsave(self, filename, data, *args, project: bool = True, **kw):
-        """
-        Save an image to a file on the project space or fileserver.
-
-        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
-
-        Parameters
-        ----------
-        filename : str
-            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space or to source_mount.
-        all other arguments are passed down to [scikit-image.io.imsave](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imsave)
-        data : ndarray containing the image data
-
-        Returns
-        -------
-        result of skimage.io.imsave
-
-        """
-        full_path = Path(filename)
-
-        if os.access(full_path.parent, os.W_OK):
-            return imsave(str(full_path), data, *args, **kw)
-        else:
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                temp_file = Path(tmpdirname) / filename.name
-                output = imsave(str(temp_file), data, *args, **kw)
-                if project:
-                    proc = self.dm.dtmv(
-                        str(temp_file), str(
-                            self.target_project_space / filename))
-                else:
-                    proc = self.dm.dtmv(
-                        str(temp_file), str(
-                            self.source_mount / filename))
-                waitfor(proc)
-            return output
 
     def __del__(self):
         '''Clean up the temporary directory when the object is deleted
