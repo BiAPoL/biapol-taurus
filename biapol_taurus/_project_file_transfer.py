@@ -164,7 +164,7 @@ class ProjectFileTransfer:
         """
         return [str(f) for f in sorted(self.target_project_space.glob('**/*'))]
 
-    def list_fileserver_files(self):
+    def list_fileserver_files(self, timeout_in_s: float = 30):
         """
         Get a list of files located in the project space
 
@@ -173,10 +173,11 @@ class ProjectFileTransfer:
         List of strings
         """
         proc = self.dm.dtls('-R1', str(self.source_mount))
-        exit_code = waitfor(proc)
+        exit_code = waitfor(
+            proc,
+            timeout_in_s=timeout_in_s,
+            discard_output=False)
         out, err = proc.communicate()
-        if exit_code > 0:
-            warnings.warn('list operation exited with error: {}'.format(err))
         return out.decode('utf-8').split("\n")
 
     def remove_file(self, filename, timeout_in_s: float = 20,
