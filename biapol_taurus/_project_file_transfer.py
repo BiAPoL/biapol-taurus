@@ -203,7 +203,7 @@ class ProjectFileTransfer:
             return full_path
         else:
             # then check, if the file exists in the cache
-            full_path = Path(self.cache) / full_path.name
+            full_path = Path(self.cache.name) / full_path.name
             if full_path.is_file():
                 return full_path
             else:
@@ -217,7 +217,7 @@ class ProjectFileTransfer:
         filename = filename.replace("\\", "/")
         source_file = self.source_mount / filename
         # copy the file into the cache
-        target_file = Path(self.cache) / source_file.name
+        target_file = Path(self.cache.name) / source_file.name
 
         # start a process, submitting the copy-job
         proc = self.dm.dtcp('-r', str(source_file),
