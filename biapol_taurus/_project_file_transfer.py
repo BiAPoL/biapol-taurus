@@ -6,6 +6,13 @@ from skimage.io import imread, imsave
 from taurus_datamover import Datamover, waitfor
 
 
+class DangerousOperationException(IOError):
+    '''
+    Exception that is raised when a dangerous operatino is called without im_sure=True
+    '''
+    pass
+
+
 class ProjectFileTransfer:
     """
     Connects a project space on the cluster with a fileserver share via an export node.
@@ -25,13 +32,81 @@ class ProjectFileTransfer:
         Parameters
         ----------
         source_mount : str
-            Fileserver mount on the export node, e.g. /grp/g_my_group/
+            Fileserver mount on the export node, e.g. /grp/g_my_group/userdir/
         target_project : str
-            Project space on the cluster, e.g. /projects/p_my_project/
+            Project space on the cluster, e.g. /projects/p_my_project/userdir/
+        dm_path: str, optional
+            the path where the datamover tools reside, by default /sw/taurus/tools/slurmtools/default/bin/
         """
         self.source_mount = Path(source_mount)
         self.target_project_space = Path(target_project_space)
         self.dm = Datamover(path_to_exe=dm_path)
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def sync_with_fileserver(self, direction: str = 'from fileserver', delete: bool = False,
+                             overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
+        '''Synchronize a whole directory tree with the fileserver (using rsync). Does not delete files, but overwrites existing files.
+
+        By default, we sync from the fileserver to the project space (direction='from fileserver'). If you want to synchronize from the project space to the fileserver, use direction='to fileserver'.
+
+        Beware that this recursively copies _all_ the data. So if you have an error in source mount or target project space, this might create a mess. If you are unsure, first call the method with dry_run=True. That way, no data will be transferred, and you can check the output. This behavior is enforced for dangerous operations that might cause data loss. Dangerous operations are: setting delete=true or overwrite_newer=true and syncing the entire fileserver with the entire project space.
+
+        Parameters
+        ----------
+        direction : str, optional
+            The direction in which to sync, by default 'from fileserver'
+        delete : bool, optional
+            Delete files that do not exist on the fileserver on the target project space (add rsync --delete flag), by default False
+        overwrite_newer : bool, optional
+            Overwrite files on the target project space even if they are newer (removes rsync -u flag), by default False
+        im_sure : bool, optional
+            Confirm that you are sure and skip the dry-run for dangerous operations, by default False
+        dry_run : bool, optional
+            Enforce a dry-run (add rsunc -n flag), by default False
+        background : bool, optional
+            Run in the background and do not wait until the sync is complete, by default True
+
+        Returns
+        -------
+        subprocess.CompletedProcess object (if bacground=True (default))
+            the CompletedProcess object created by subprocess.Popen. This can be used to retrieve the command output with the communicate() method: https://docs.python.org/3/library/subprocess.html
+        tuple of strings (if background=False)
+            the first element of the tuple is the standard output (stdout) of the process, the second element is the error (stderr).
+        '''
+        if overwrite_newer:
+            options = ['-av']
+        else:
+            options = ['-auv']
+        if delete:
+            options.append('--delete')
+        if direction == 'from_fileserver':
+            options.append(str(self.source_mount))
+            options.append(str(self.target_project_space))
+        else:
+            options.append(str(self.target_project_space))
+            options.append(str(self.source_mount))
+        dangerous = delete or overwrite_newer
+        if self.target_project_space.parent == self.target_project_space.parents[
+                -2] and self.source_mount.parent == self.source_mount.parents[-2]:
+            # syncing the entire fileserver directly into target_project_space
+            # is dangerous because it might affect data of other users of the
+            # same project space
+            dangerous = True
+        if dry_run:
+            dangerous = False  # dry runs are never dangerous
+            options[0] += 'n'
+        if dangerous and not im_sure:
+            warnings.warn(
+                'What you are trying to do is dangerous. Enforcing dry-run...')
+            options[0] += 'n'
+            proc = self.dm.dtrsync(*options)
+            waitfor(proc, discard_output=False)
+            out, _ = proc.communicate()
+            raise DangerousOperationException(
+                'If you are sure you know what you are doing, call this method again with te keyword argument "im_sure=True".\nBut before you do that, please carefully check the output of the dry-run and make sure that is what you intended: {}'.format(out))
+        proc = self.dm.dtrsync(*options)
+        waitfor(proc, discard_output=False)
+        return proc.communicate()
 
     def get_file(self, filename: str, timeout_in_s: float = -1,
                  wait_for_finish: bool = True):
@@ -53,7 +128,12 @@ class ProjectFileTransfer:
         See also
         --------
         .. [0] https://doc.zih.tu-dresden.de/data_transfer/datamover/
+
         """
+
+        # ToDo change behavior of get_file so that it tries to get the file on
+        # the cluster first and if that fails, copys the file from the
+        # fileserver to /tmp
         filename = filename.replace("\\", "/")
         source_file = self.source_mount / filename
         # if we use dtcp, we cannot create subdirectories in the target
@@ -196,3 +276,10 @@ class ProjectFileTransfer:
                             self.source_mount / filename))
                 waitfor(proc)
             return output
+
+    def __del__(self):
+        '''
+        clean up the temporary directory when the object is deleted
+
+        '''
+        self.tmp.cleanup()
