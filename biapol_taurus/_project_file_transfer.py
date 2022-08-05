@@ -180,8 +180,7 @@ class ProjectFileTransfer:
         out, err = proc.communicate()
         return out.decode('utf-8').split("\n")
 
-    def remove_file(self, filename, timeout_in_s: float = 20,
-                    wait_for_finish: bool = False):
+    def remove_file(self, filename, wait_for_finish: bool = False):
         """
         Removes a given file from the project space.
 
