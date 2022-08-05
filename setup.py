@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="biapol-taurus",
-    version="0.1.1",
+    version="0.2.0",
     author="Robert Haase",
     author_email="robert.haase@tu-dresden.de",
     description="Bio-image analysis tools for the taurus cluster at TU Dresden",
