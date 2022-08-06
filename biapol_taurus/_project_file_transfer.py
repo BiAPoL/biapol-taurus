@@ -3,7 +3,7 @@ import warnings
 import tempfile
 from pathlib import Path
 from skimage.io import imread, imsave
-from taurus_datamover import Datamover, waitfor
+from taurus_datamover import Datamover, CacheWorkspace, waitfor
 
 
 class DangerousOperationException(IOError):
@@ -24,7 +24,6 @@ class ProjectFileTransfer:
     * `list_files` in the project space and
     * `list_fileserver_files` list files on the fileserver
     * `remove_file`s from the project space.
-    * `cleanup_cache`
 
     See also
     --------
@@ -49,7 +48,9 @@ class ProjectFileTransfer:
         self.source_fileserver_dir = Path(source_fileserver_dir)
         self.target_project_space_dir = Path(target_project_space_dir)
         self.dm = Datamover(path_to_exe=dm_path)
-        self.cache = tempfile.TemporaryDirectory()
+        self.cache = None
+        self.tmp = None
+        self._initialize_tmp()
 
     def imread(self, filename, *args, **kw):
         """
@@ -177,7 +178,7 @@ class ProjectFileTransfer:
                  wait_for_finish: bool = True) -> Path:
         '''Ensures that the computing node has access to a file. If necessary, the file is retrieved from a mounted fileserver share.
 
-        Before transferring the file, local directories are checked in the following order: 1. filename (in case the user gave a path to an accessible file) 2. (temporary cache directory)/file.name, 3. /target_project_space_dir/filename (in case the user gave a path relative to the target project space). Only if no file of the same name is found, the file is retrieved from the fileserver.
+        Before transferring the file, local directories are checked in the following order: 1. filename (in case the user gave a path to an accessible file) 2. (temporary directory)/file.name, 3. /target_project_space_dir/filename (in case the user gave a path relative to the target project space). Only if no file of the same name is found, the file is retrieved from the fileserver.
 
         Parameters
         ----------
@@ -202,8 +203,8 @@ class ProjectFileTransfer:
         if full_path.is_file():
             return full_path
         else:
-            # then check, if the file exists in the cache
-            full_path = Path(self.cache.name) / full_path.name
+            # then check, if the file exists in tmp
+            full_path = Path(self.tmp.name) / full_path.name
             if full_path.is_file():
                 return full_path
             else:
@@ -213,11 +214,11 @@ class ProjectFileTransfer:
                 if full_path.is_file():
                     return full_path
         # if we can't find the file locally, retrieve it from the fileserver
-        # (into the cache)
+        # (into tmp)
         filename = filename.replace("\\", "/")
         source_file = self.source_fileserver_dir / filename
-        # copy the file into the cache
-        target_file = Path(self.cache.name) / source_file.name
+        # copy the file into tmp
+        target_file = Path(self.tmp.name) / source_file.name
 
         # start a process, submitting the copy-job
         proc = self.dm.dtcp('-r', str(source_file),
@@ -290,13 +291,13 @@ class ProjectFileTransfer:
         if exit_code > 0:
             raise IOError('Could not remove file: {}'.format(str(filename)))
 
-    def cleanup_cache(self):
+    def _initialize_tmp(self):
         '''Delete all temporary data and create a new, empty temp directory.
         '''
-        self.cache.cleanup()
-        self.cache = tempfile.TemporaryDirectory()
+        self.cache = CacheWorkspace()
+        self.tmp = tempfile.TemporaryDirectory(prefix=self.cache.name + b'/')
 
     def __del__(self):
-        '''Clean up the temporary directory when the object is deleted
+        '''Clean up the cache when the object is deleted
         '''
         self.cache.cleanup()
