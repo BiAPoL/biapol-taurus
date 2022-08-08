@@ -93,23 +93,25 @@ class ProjectFileTransfer:
         result of skimage.io.imsave
 
         """
+        filename = filename.replace("\\", "/")
         full_path = Path(filename)
 
         if os.access(full_path.parent, os.W_OK):
             return imsave(str(full_path), data, *args, **kw)
+        temp_file = Path(self.tmp.name) / full_path.name
+        output = imsave(str(temp_file), data, *args, **kw)
+        if str(filename).startswith(str(self.target_project_space_dir)):
+            target_path = str(self.target_project_space_dir / filename)
+        elif str(filename).startswith(str(self.source_fileserver_dir)):
+            target_path = str(self.source_fileserver_dir / filename)
         else:
-            temp_file = Path(self.tmp.name) / full_path.name
-            output = imsave(str(temp_file), data, *args, **kw)
             if target != 'fileserver':
-                proc = self.dm.dtmv(
-                    str(temp_file), str(
-                        self.target_project_space_dir / filename))
+                target_path = str(self.target_project_space_dir / filename)
             else:
-                proc = self.dm.dtmv(
-                    str(temp_file), str(
-                        self.source_fileserver_dir / filename))
-            waitfor(proc)
-            return output
+                target_path = str(self.source_fileserver_dir / filename)
+        proc = self.dm.dtmv(str(temp_file), target_path)
+        waitfor(proc)
+        return output
 
     def sync_with_fileserver(self, direction: str = 'from fileserver', delete: bool = False,
                              overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
