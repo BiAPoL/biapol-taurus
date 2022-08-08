@@ -111,6 +111,7 @@ class ProjectFileTransfer:
                 target_path = str(self.source_fileserver_dir / filename)
         proc = self.dm.dtmv(str(temp_file), target_path)
         waitfor(proc)
+        print('target file: {}'.format(target_path))
         return output
 
     def sync_with_fileserver(self, direction: str = 'from fileserver', delete: bool = False,
