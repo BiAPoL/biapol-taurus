@@ -295,7 +295,7 @@ class ProjectFileTransfer:
         '''Delete all temporary data and create a new, empty temp directory.
         '''
         self.cache = CacheWorkspace()
-        self.tmp = tempfile.TemporaryDirectory(prefix=self.cache.name + b'/')
+        self.tmp = tempfile.TemporaryDirectory(prefix=self.cache.name + '/')
 
     def __del__(self):
         '''Clean up the cache when the object is deleted
