@@ -96,7 +96,7 @@ class ProjectFileTransfer:
             return imsave(str(full_path), data, *args, **kw)
         else:
             with tempfile.TemporaryDirectory() as tmpdirname:
-                temp_file = Path(tmpdirname) / filename.name
+                temp_file = Path(self.tmp.name) / full_path.name
                 output = imsave(str(temp_file), data, *args, **kw)
                 if project:
                     proc = self.dm.dtmv(
