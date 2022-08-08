@@ -72,7 +72,7 @@ class ProjectFileTransfer:
         full_path = self.get_file(filename)
         return imread(str(full_path), *args, **kw)
 
-    def imsave(self, filename, data, *args, project: bool = True, **kw):
+    def imsave(self, filename, data, *args, target: str = 'project', **kw):
         """
         Save an image to a file on the fileserver or any other location you have write access from a node.
 
@@ -82,8 +82,11 @@ class ProjectFileTransfer:
         ----------
         filename : str
             The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        data : ndarray
+            image data
+        target : str, optional
+            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         all other arguments are passed down to [scikit-image.io.imsave](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imsave)
-        data : ndarray containing the image data
 
         Returns
         -------
@@ -95,18 +98,17 @@ class ProjectFileTransfer:
         if os.access(full_path.parent, os.W_OK):
             return imsave(str(full_path), data, *args, **kw)
         else:
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                temp_file = Path(self.tmp.name) / full_path.name
-                output = imsave(str(temp_file), data, *args, **kw)
-                if project:
-                    proc = self.dm.dtmv(
-                        str(temp_file), str(
-                            self.target_project_space_dir / filename))
-                else:
-                    proc = self.dm.dtmv(
-                        str(temp_file), str(
-                            self.source_fileserver_dir / filename))
-                waitfor(proc)
+            temp_file = Path(self.tmp.name) / full_path.name
+            output = imsave(str(temp_file), data, *args, **kw)
+            if target != 'fileserver':
+                proc = self.dm.dtmv(
+                    str(temp_file), str(
+                        self.target_project_space_dir / filename))
+            else:
+                proc = self.dm.dtmv(
+                    str(temp_file), str(
+                        self.source_fileserver_dir / filename))
+            waitfor(proc)
             return output
 
     def sync_with_fileserver(self, direction: str = 'from fileserver', delete: bool = False,
