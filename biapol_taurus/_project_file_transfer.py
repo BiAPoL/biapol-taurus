@@ -3,7 +3,7 @@ import warnings
 import tempfile
 from pathlib import Path
 from skimage.io import imread, imsave
-from taurus_datamover import Datamover, CacheWorkspace, waitfor
+from taurus_datamover import Datamover, CacheWorkspace, waitfor, save_to_project
 
 
 class DangerousOperationException(IOError):
@@ -95,11 +95,8 @@ class ProjectFileTransfer:
         """
         filename = filename.replace("\\", "/")
         full_path = Path(filename)
-
         if os.access(full_path.parent, os.W_OK):
             return imsave(str(full_path), data, *args, **kw)
-        temp_file = Path(self.tmp.name) / full_path.name
-        output = imsave(str(temp_file), data, *args, **kw)
         if str(filename).startswith(str(self.target_project_space_dir)):
             target_path = str(self.target_project_space_dir / filename)
         elif str(filename).startswith(str(self.source_fileserver_dir)):
@@ -109,10 +106,7 @@ class ProjectFileTransfer:
                 target_path = str(self.target_project_space_dir / filename)
             else:
                 target_path = str(self.source_fileserver_dir / filename)
-        proc = self.dm.dtmv(str(temp_file), target_path)
-        waitfor(proc)
-        print('target file: {}'.format(target_path))
-        return output
+        return save_to_project(str(target_path), data, *args, **kw)
 
     def sync_with_fileserver(self, direction: str = 'from fileserver', delete: bool = False,
                              overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
