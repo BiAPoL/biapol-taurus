@@ -106,7 +106,7 @@ class ProjectFileTransfer:
                 target_path = str(self.target_project_space_dir / filename)
             else:
                 target_path = str(self.source_fileserver_dir / filename)
-        return save_to_project(str(target_path), data, *args, **kw)
+        return save_to_project(imsave, str(target_path), data, *args, **kw)
 
     def sync_with_fileserver(self, direction: str = 'from fileserver', delete: bool = False,
                              overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
