@@ -6,8 +6,8 @@ from skimage.io import imread, imsave
 from taurus_datamover import Datamover, CacheWorkspace, waitfor, save_to_project
 
 
-class DangerousOperationException(IOError):
-    '''Exception that is raised when a dangerous operatino is called without im_sure=True
+class ConfirmationRequiredException(IOError):
+    '''Exception that is raised when a dangerous operation is called without im_sure=True
     '''
     pass
 
@@ -32,7 +32,7 @@ class ProjectFileTransfer:
     """
 
     def __init__(self, source_fileserver_dir: str, target_project_space_dir: str,
-                 dm_path: str = '/sw/taurus/tools/slurmtools/default/bin/'):
+                 datamover_path: str = '/sw/taurus/tools/slurmtools/default/bin/'):
         """
         Sets up a connection between a directory on the fileserver and a directory on the project space.
 
@@ -42,12 +42,12 @@ class ProjectFileTransfer:
             Fileserver mount on the export node, e.g. /grp/g_my_group/userdir/
         target_project : str
             Project space on the cluster, e.g. /projects/p_my_project/userdir/
-        dm_path: str, optional
+        datamover_path: str, optional
             the path where the datamover tools reside, by default /sw/taurus/tools/slurmtools/default/bin/
         """
         self.source_fileserver_dir = Path(source_fileserver_dir)
         self.target_project_space_dir = Path(target_project_space_dir)
-        self.dm = Datamover(path_to_exe=dm_path)
+        self.datamover = Datamover(path_to_exe=datamover_path)
         self.cache = None
         self.tmp = None
         self._initialize_tmp()
@@ -114,7 +114,13 @@ class ProjectFileTransfer:
 
         By default, we sync from the fileserver to the project space (direction='from fileserver'). If you want to synchronize from the project space to the fileserver, use direction='to fileserver'.
 
-        Beware that this recursively copies _all_ the data. So if you have an error in source mount or target project space, this might create a mess. If you are unsure, first call the method with dry_run=True. That way, no data will be transferred, and you can check the output. This behavior is enforced for dangerous operations that might cause data loss. Dangerous operations are: setting delete=true or overwrite_newer=true and syncing the entire fileserver with the entire project space.
+        Beware that this recursively copies _all_ the data. So if you have an error in source mount or target project space, this might create a mess.
+        If you are unsure, first call the method with dry_run=True. That way, no data will be transferred, and you can check the output.
+        This behavior is enforced for dangerous operations that might cause data loss.
+        Dangerous operations are:
+        1. setting delete=True
+        2. setting overwrite_newer=True
+        3. syncing the entire fileserver with the entire project space.
 
         Parameters
         ----------
@@ -144,40 +150,44 @@ class ProjectFileTransfer:
             options = ['-auv']
         if delete:
             options.append('--delete')
-        if direction == 'from_fileserver':
+        if direction == 'from_fileserver' or direction == 'from fileserver':
             options.append(str(self.source_fileserver_dir))
             options.append(str(self.target_project_space_dir))
         else:
             options.append(str(self.target_project_space_dir))
             options.append(str(self.source_fileserver_dir))
-        dangerous = delete or overwrite_newer
-        if self.target_project_space_dir.parent == self.target_project_space_dir.parents[
-                -2] and self.source_fileserver_dir.parent == self.source_fileserver_dir.parents[-2]:
+        confirmation_required = delete or overwrite_newer
+        if self.target_project_space_dir.parent == list(self.target_project_space_dir.parents)[
+                -2] and self.source_fileserver_dir.parent == list(self.source_fileserver_dir.parents)[-2]:
             # syncing the entire fileserver directly into target_project_space_dir
             # is dangerous because it might affect data of other users of the
             # same project space
-            dangerous = True
+            confirmation_required = True
         if dry_run:
-            dangerous = False  # dry runs are never dangerous
+            confirmation_required = False  # dry runs are never dangerous
             options[0] += 'n'
-        if dangerous and not im_sure:
+        if confirmation_required and not im_sure:
             warnings.warn(
                 'What you are trying to do is dangerous. Enforcing dry-run...')
             options[0] += 'n'
-            proc = self.dm.dtrsync(*options)
-            waitfor(proc, discard_output=False)
-            out, _ = proc.communicate()
-            raise DangerousOperationException(
+            process = self.datamover.dtrsync(*options)
+            waitfor(process, discard_output=False)
+            out, _ = process.communicate()
+            raise ConfirmationRequiredException(
                 'If you are sure you know what you are doing, call this method again with te keyword argument "im_sure=True".\nBut before you do that, please carefully check the output of the dry-run and make sure that is what you intended: {}'.format(out))
-        proc = self.dm.dtrsync(*options)
-        waitfor(proc, discard_output=False)
-        return proc.communicate()
+        process = self.datamover.dtrsync(*options)
+        waitfor(process, discard_output=False)
+        return process.communicate()
 
     def get_file(self, filename: str, timeout_in_s: float = -1,
                  wait_for_finish: bool = True) -> Path:
         '''Ensures that the computing node has access to a file. If necessary, the file is retrieved from a mounted fileserver share.
 
-        Before transferring the file, local directories are checked in the following order: 1. filename (in case the user gave a path to an accessible file) 2. (temporary directory)/file.name, 3. /target_project_space_dir/filename (in case the user gave a path relative to the target project space). Only if no file of the same name is found, the file is retrieved from the fileserver.
+        Before transferring the file, local directories are checked in the following order:
+        1. filename (in case the user gave a path to an accessible file)
+        2. (temporary directory)/file.name,
+        3. /target_project_space_dir/filename (in case the user gave a path relative to the target project space).
+        4. Only if no file of the same name is found, the file is retrieved from the fileserver.
 
         Parameters
         ----------
@@ -220,9 +230,9 @@ class ProjectFileTransfer:
         target_file = Path(self.tmp.name) / source_file.name
 
         # start a process, submitting the copy-job
-        proc = self.dm.dtcp('-r', str(source_file),
-                            str(target_file))
-        exit_code = waitfor(proc)
+        process = self.datamover.dtcp('-r', str(source_file),
+                                      str(target_file))
+        exit_code = waitfor(process)
         if exit_code > 0:
             raise IOError(
                 'Could not get file from fileserver: {}'.format(
@@ -248,12 +258,12 @@ class ProjectFileTransfer:
         -------
         List of strings
         """
-        proc = self.dm.dtls('-R1', str(self.source_fileserver_dir))
+        process = self.datamover.dtls('-R1', str(self.source_fileserver_dir))
         exit_code = waitfor(
-            proc,
+            process,
             timeout_in_s=timeout_in_s,
             discard_output=False)
-        out, err = proc.communicate()
+        out, err = process.communicate()
         return out.decode('utf-8').split("\n")
 
     def remove_file(self, filename, wait_for_finish: bool = False):
@@ -281,12 +291,12 @@ class ProjectFileTransfer:
         else:
             filename = Path(filename)
 
-        proc = self.dm.dtrm('-r', str(filename))
+        process = self.datamover.dtrm('-r', str(filename))
 
         if not wait_for_finish:
             return True
 
-        exit_code = waitfor(proc)
+        exit_code = waitfor(process)
         if exit_code > 0:
             raise IOError('Could not remove file: {}'.format(str(filename)))
 
