@@ -151,10 +151,10 @@ class ProjectFileTransfer:
         if delete:
             options.append('--delete')
         if direction == 'from_fileserver' or direction == 'from fileserver':
-            options.append(str(self.source_fileserver_dir))
+            options.append(str(self.source_fileserver_dir) + '/')
             options.append(str(self.target_project_space_dir))
         else:
-            options.append(str(self.target_project_space_dir))
+            options.append(str(self.target_project_space_dir) + '/')
             options.append(str(self.source_fileserver_dir))
         confirmation_required = delete or overwrite_newer
         if self.target_project_space_dir.parent == list(self.target_project_space_dir.parents)[
