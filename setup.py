@@ -14,6 +14,7 @@ setuptools.setup(
     url="https://github.com/BiAPoL/biapol-taurus",
     packages=setuptools.find_packages(exclude=["docs"]),
     include_package_data=True,
+    install_requires=["taurus-datamover", "scikit-image"],
     python_requires='>=3.6',
     classifiers=[
         "Programming Language :: Python :: 3",
