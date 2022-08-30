@@ -93,10 +93,37 @@ class ProjectFileTransfer:
         result of skimage.io.imsave
 
         """
+        return self.save_to_project(
+            imsave, filename, data, *args, target=target, **kw)
+
+    def save_to_project(self, save_function: callable,
+                        filename, data, *args, target: str = 'project', **kw):
+        """
+        Save data to a file on the project space, fileserver or any other location you have write access from a node.
+
+        Be aware that, unlike the login node, computing nodes don't have write access to the project space.
+
+        Parameters
+        ----------
+        save_function : callable
+            the function that saves the data to disk
+        filename : str
+            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        data : ndarray
+            image data
+        target : str, optional
+            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
+        all other arguments are passed down to [scikit-image.io.imsave](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imsave)
+
+        Returns
+        -------
+        result of save_function
+
+        """
         filename = filename.replace("\\", "/")
         full_path = Path(filename)
         if os.access(full_path.parent, os.W_OK):
-            return imsave(str(full_path), data, *args, **kw)
+            return save_function(str(full_path), data, *args, **kw)
         if str(filename).startswith(str(self.target_project_space_dir)):
             target_path = str(self.target_project_space_dir / filename)
         elif str(filename).startswith(str(self.source_fileserver_dir)):
@@ -106,7 +133,8 @@ class ProjectFileTransfer:
                 target_path = str(self.target_project_space_dir / filename)
             else:
                 target_path = str(self.source_fileserver_dir / filename)
-        return save_to_project(imsave, str(target_path), data, *args, **kw)
+        return save_to_project(save_function, str(
+            target_path), data, *args, **kw)
 
     def sync_with_fileserver(self, direction: str = 'from fileserver', delete: bool = False,
                              overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
