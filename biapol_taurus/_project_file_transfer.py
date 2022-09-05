@@ -2,7 +2,6 @@ import os
 import warnings
 import tempfile
 from pathlib import Path
-from skimage.io import imread, imsave
 from taurus_datamover import Datamover, CacheWorkspace, waitfor, save_to_project
 
 
@@ -69,22 +68,23 @@ class ProjectFileTransfer:
         ndarray containing the image data
 
         """
+        from skimage.io import imread
         full_path = self.get_file(filename)
         return imread(str(full_path), *args, **kw)
 
     def imsave(self, filename, data, *args, target: str = 'project', **kw):
         """
-        Save an image to a file on the fileserver or any other location you have write access from a node.
+        Save an image to a file on the project space, fileserver or any other location you have write access from a node.
 
-        Be aware that, unlike the login node, computing nodes don't have write access to the project space.
+        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `skimage.io.imsave`.
 
         Parameters
         ----------
         filename : str
-            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to `target_project_space_dir` or to `source_fileserver_dir`.
         data : ndarray
             image data
-        target : str, optional
+        target : str, optional, by default 'project'
             where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         all other arguments are passed down to [scikit-image.io.imsave](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imsave)
 
@@ -93,15 +93,170 @@ class ProjectFileTransfer:
         result of skimage.io.imsave
 
         """
-        return self.save_to_project(
-            imsave, filename, data, *args, target=target, **kw)
+        from skimage.io import imsave
+        return self.save_file(imsave, filename, data, *args, target=target, **kw)
 
-    def save_to_project(self, save_function: callable,
-                        filename, data, *args, target: str = 'project', **kw):
+    def numpy_load(self, filename, *args, **kw):
+        """
+        Load a numpy array from a file.
+
+        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
+
+        Parameters
+        ----------
+        filename : str
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        all other arguments are passed down to [numpy.load](https://numpy.org/doc/stable/reference/generated/numpy.load.html)
+
+        Returns
+        -------
+        ndarray containing the numpy data
+
+        """
+        from numpy import load as np_load
+        full_path = self.get_file(filename)
+        return np_load(str(full_path), *args, **kw)
+
+    def numpy_save(self, filename, data, *args, target: str = 'project', **kw):
+        """
+        Save a numpy array to a file on the project space, fileserver or any other location you have write access from a node.
+
+        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `numpy.save`.
+
+        Parameters
+        ----------
+        filename : str
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        data : ndarray
+            numpy data
+        target : str, optional, by default 'project'
+            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
+        all other arguments are passed down to [numpy.save](https://numpy.org/doc/stable/reference/generated/numpy.save.html)
+
+        Returns
+        -------
+        result of numpy.save
+
+        """
+        from numpy import save as np_save
+        return self.save_file(np_save, filename, data, *args, target=target, **kw)
+
+    def numpy_savez_compressed(self, filename, data, *args, target: str = 'project', **kw):
+        """
+        Save several numpy arrays into a single file in compressed .npz format to the project space, fileserver or any other location you have write access from a node.
+
+        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `numpy.savez_compressed`.
+
+        Parameters
+        ----------
+        filename : str
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        data : ndarray
+            numpy data
+        target : str, optional, by default 'project'
+            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
+        all other arguments are passed down to [numpy.savez_compressed](https://numpy.org/doc/stable/reference/generated/numpy.savez_compressed.html)
+
+        Returns
+        -------
+        result of numpy.savez_compressed
+
+        """
+        from numpy import savez_compressed as np_savez_compressed
+        return self.save_file(np_savez_compressed, filename, data, *args, target=target, **kw)
+
+    def numpy_loadtxt(self, filename, *args, **kw):
+        """
+        Load a numpy array from a text file.
+
+        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
+
+        Parameters
+        ----------
+        filename : str
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        all other arguments are passed down to [numpy.loadtxt](https://numpy.org/doc/stable/reference/generated/numpy.loadtxt.html)
+
+        Returns
+        -------
+        ndarray containing the numpy data
+
+        """
+        from numpy import loadtxt as np_loadtxt
+        full_path = self.get_file(filename)
+        return np_loadtxt(str(full_path), *args, **kw)
+
+    def numpy_savetxt(self, filename, data, *args, target: str = 'project', **kw):
+        """
+        Save a numpy array to a text file on the project space, fileserver or any other location you have write access from a node.
+
+        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `numpy.save`.
+
+        Parameters
+        ----------
+        filename : str
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        data : ndarray
+            numpy data
+        target : str, optional, by default 'project'
+            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
+        all other arguments are passed down to [numpy.save](https://numpy.org/doc/stable/reference/generated/numpy.save.html)
+
+        Returns
+        -------
+        result of numpy.save
+
+        """
+        from numpy import savetxt as np_savetxt
+        return self.save_file(np_savetxt, filename, data, *args, target=target, **kw)
+
+    def csv_load(self, filename, *args, **kw):
+        """
+        Load a numpy array from a csv file.
+
+        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
+
+        Parameters
+        ----------
+        filename : str
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        all other arguments are passed down to [numpy.loadtxt](https://numpy.org/doc/stable/reference/generated/numpy.loadtxt.html)
+
+        Returns
+        -------
+        ndarray containing the numpy data
+
+        """
+        return self.numpy_loadtxt(filename, *args, **kw)
+
+    def csv_save(self, filename, data, *args, target: str = 'project', **kw):
+        """
+        Save an iterable (i.e. a list or a numpy array) to a csv file on the project space, fileserver or any other location you have write access from a node.
+
+        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `numpy.save`.
+
+        Parameters
+        ----------
+        filename : str
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        data : ndarray
+            numpy data
+        target : str, optional, by default 'project'
+            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
+        all other arguments are passed down to [numpy.save](https://numpy.org/doc/stable/reference/generated/numpy.save.html)
+
+        Returns
+        -------
+        result of numpy.save
+
+        """
+        return self.numpy_savetxt(filename, data, *args, target=target, **kw)
+
+    def save_file(self, save_function: callable, filename, data, *args, target: str = 'project', **kw):
         """
         Save data to a file on the project space, fileserver or any other location you have write access from a node.
 
-        Be aware that, unlike the login node, computing nodes don't have write access to the project space.
+        Be aware that, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just the save_function directly.
 
         Parameters
         ----------
@@ -113,7 +268,7 @@ class ProjectFileTransfer:
             image data
         target : str, optional
             where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
-        all other arguments are passed down to [scikit-image.io.imsave](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imsave)
+        all other arguments are passed down to save_function
 
         Returns
         -------
@@ -188,7 +343,7 @@ class ProjectFileTransfer:
         if self.target_project_space_dir.parent == list(self.target_project_space_dir.parents)[
                 -2] and self.source_fileserver_dir.parent == list(self.source_fileserver_dir.parents)[-2]:
             # syncing the entire fileserver directly into target_project_space_dir
-            # is dangerous because it might affect data of other users of the
+            # requires confirmation because it might affect data of other users of the
             # same project space
             confirmation_required = True
         if dry_run:
@@ -196,7 +351,7 @@ class ProjectFileTransfer:
             options[0] += 'n'
         if confirmation_required and not im_sure:
             warnings.warn(
-                'What you are trying to do is dangerous. Enforcing dry-run...')
+                'What you are trying to do requires confirmation. Enforcing dry-run...')
             options[0] += 'n'
             process = self.datamover.dtrsync(*options)
             waitfor(process, discard_output=False)
