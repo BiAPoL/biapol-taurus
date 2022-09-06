@@ -16,7 +16,7 @@ except ModuleNotFoundError:
 
 class TestProjectFileTransfer(unittest.TestCase):
     def setUp(self) -> None:
-        self.mock_cluster = MockCluster()
+        self.mock_cluster = MockCluster(commands=['dtls', 'dtcp', 'dtrm', 'dtmv', 'dtrsync'])
         self.project = self.mock_cluster.temp_path / 'project'
         self.project.mkdir()
         self.fileserver = self.mock_cluster.temp_path / 'fileserver'
@@ -32,12 +32,24 @@ class TestProjectFileTransfer(unittest.TestCase):
         self.mock_cluster.tempdir.cleanup()
         return super().tearDown()
 
+    def test_ensure_project_dir_exists(self):
+        with self.mock_cluster as mock_cluster:
+            target = self.project / 'userdir'
+            self.assertFalse(target.exists())
+            pft = biapol_taurus.ProjectFileTransfer(
+                source_fileserver_dir=str(self.userdir),
+                target_project_space_dir=str(target),
+                datamover_path=mock_cluster.bin_path,
+                workspace_exe_path=mock_cluster.bin_path)
+            self.assertTrue(target.exists())
+
     def test_sync_with_fileserver(self):
         with self.mock_cluster as mock_cluster:
             pft = biapol_taurus.ProjectFileTransfer(
-                source_fileserver_dir=str(self.fileserver),
-                target_project_space_dir=str(self.project),
-                datamover_path=mock_cluster.bin_path)
+                source_fileserver_dir=str(self.userdir),
+                target_project_space_dir=str(self.project / 'userdir'),
+                datamover_path=mock_cluster.bin_path,
+                workspace_exe_path=mock_cluster.bin_path)
             pft.sync_with_fileserver()
             numpy_data = np.load(self.project / 'userdir' / 'testdata.npy')
             self.assertTrue(np.array_equal(self.testdata, numpy_data))
