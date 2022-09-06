@@ -31,7 +31,8 @@ class ProjectFileTransfer:
     """
 
     def __init__(self, source_fileserver_dir: str, target_project_space_dir: str,
-                 datamover_path: str = '/sw/taurus/tools/slurmtools/default/bin/'):
+                 datamover_path: str = '/sw/taurus/tools/slurmtools/default/bin/',
+                 workspace_exe_path: str = '/usr/bin/'):
         """
         Sets up a connection between a directory on the fileserver and a directory on the project space.
 
@@ -47,9 +48,11 @@ class ProjectFileTransfer:
         self.source_fileserver_dir = Path(source_fileserver_dir)
         self.target_project_space_dir = Path(target_project_space_dir)
         self.datamover = Datamover(path_to_exe=datamover_path)
+        self.workspace_exe_path = workspace_exe_path
         self.cache = None
         self.tmp = None
         self._initialize_tmp()
+        self._ensure_project_dir_exists()
 
     def imread(self, filename, *args, **kw):
         """
@@ -486,10 +489,28 @@ class ProjectFileTransfer:
     def _initialize_tmp(self):
         '''Delete all temporary data and create a new, empty temp directory.
         '''
-        self.cache = CacheWorkspace()
+        self.cache = CacheWorkspace(path_to_exe=self.workspace_exe_path)
         self.tmp = tempfile.TemporaryDirectory(prefix=self.cache.name + '/')
+
+    def _ensure_project_dir_exists(self):
+        if not self.target_project_space_dir.exists():
+            with tempfile.TemporaryDirectory() as temporary_dir:
+                i = 0
+                while self.target_project_space_dir.parents[i].exists() == False:
+                    i += 1
+                cached_target_dir = Path(temporary_dir).joinpath(*self.target_project_space_dir.parts[-(i + 1):])
+                cached_target_dir.mkdir(parents=True, exist_ok=True)
+                process = self.datamover.dtrsync('-a', temporary_dir + '/',
+                                                 str(self.target_project_space_dir.parents[i]) + '/')
+                exit_code = waitfor(process)
+            if exit_code > 0:
+                raise IOError('Could not create target project space dir: {}'.format(
+                    str(self.target_project_space_dir)))
 
     def __del__(self):
         '''Clean up the cache when the object is deleted
         '''
-        self.cache.cleanup()
+        try:
+            self.cache.cleanup()
+        except FileNotFoundError:
+            pass
