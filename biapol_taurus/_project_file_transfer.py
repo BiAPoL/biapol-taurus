@@ -50,7 +50,7 @@ class ProjectFileTransfer:
         self.datamover = Datamover(path_to_exe=datamover_path)
         self.workspace_exe_path = workspace_exe_path
         self.cache = None
-        self.tmp = None
+        self.temporary_directory = None
         self._initialize_tmp()
         self._ensure_project_dir_exists()
 
@@ -399,7 +399,7 @@ class ProjectFileTransfer:
             return full_path
         else:
             # then check, if the file exists in tmp
-            full_path = Path(self.tmp.name) / full_path.name
+            full_path = self.temporary_directory_path / full_path.name
             if full_path.is_file():
                 return full_path
             else:
@@ -413,7 +413,7 @@ class ProjectFileTransfer:
         filename = filename.replace("\\", "/")
         source_file = self.source_fileserver_dir / filename
         # copy the file into tmp
-        target_file = Path(self.tmp.name) / source_file.name
+        target_file = self.temporary_directory_path / source_file.name
 
         # start a process, submitting the copy-job
         process = self.datamover.dtcp('-r', str(source_file),
@@ -490,7 +490,8 @@ class ProjectFileTransfer:
         '''Delete all temporary data and create a new, empty temp directory.
         '''
         self.cache = CacheWorkspace(path_to_exe=self.workspace_exe_path)
-        self.tmp = tempfile.TemporaryDirectory(prefix=self.cache.name + '/')
+        self.temporary_directory = tempfile.TemporaryDirectory(prefix=self.cache.name + '/')
+        self.temporary_directory_path = Path(self.temporary_directory.name)
 
     def _ensure_project_dir_exists(self):
         if not self.target_project_space_dir.exists():
@@ -511,7 +512,7 @@ class ProjectFileTransfer:
         '''Clean up the cache when the object is deleted
         '''
         try:
-            self.tmp.cleanup()
+            self.temporary_directory.cleanup()
             self.cache.cleanup()
         except FileNotFoundError:
             pass
