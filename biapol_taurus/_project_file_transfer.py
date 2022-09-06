@@ -511,6 +511,7 @@ class ProjectFileTransfer:
         '''Clean up the cache when the object is deleted
         '''
         try:
+            self.tmp.cleanup()
             self.cache.cleanup()
         except FileNotFoundError:
             pass
