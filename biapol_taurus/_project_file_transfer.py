@@ -281,7 +281,7 @@ class ProjectFileTransfer:
         """
         Save a pandas dataframe to a json file on the project space, fileserver or any other location you have write access from a node.
 
-        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `dataframe.to_csv`.
+        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `dataframe.to_json`.
 
         Parameters
         ----------
@@ -298,6 +298,49 @@ class ProjectFileTransfer:
 
         """
         return self.save_file(data.to_json, filename, *args, target=target, **kw)
+
+    def pandas_read_excel(self, filename, *args, **kw):
+        """
+        Load a pandas dataframe from a excel file.
+
+        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
+
+        Parameters
+        ----------
+        filename : str
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        all other arguments are passed down to [pandas.read_excel](https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html)
+
+        Returns
+        -------
+        pandas dataframe containing the excel data
+
+        """
+        from pandas import read_excel as pd_read_excel
+        full_path = self.get_file(filename)
+        return pd_read_excel(str(full_path), *args, **kw)
+
+    def pandas_to_excel(self, filename, data, *args, target: str = 'project', **kw):
+        """
+        Save a pandas dataframe to an excel file on the project space, fileserver or any other location you have write access from a node.
+
+        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `dataframe.to_excel`.
+
+        Parameters
+        ----------
+        filename : str
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        data : pandas.DataFrame
+        target : str, optional, by default 'project'
+            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
+        all other arguments are passed down to [pandas.DataFrame.to_excel](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel)
+
+        Returns
+        -------
+        result of pandas.DataFrame.to_excel
+
+        """
+        return self.save_file(data.to_excel, filename, *args, target=target, **kw)
 
     def pandas_read_hdf(self, filename, *args, **kw):
         """
@@ -321,9 +364,26 @@ class ProjectFileTransfer:
         return pd_read_hdf(str(full_path), *args, **kw)
 
     def pandas_to_hdf(self, filename, data, *args, target: str = 'project', **kw):
-        """Saving a pandas dataframe to a hdf file requires continuous file write access, which is not supported on the taurus cluster. Please consider saving to a temporary file in your user directory and then transferring the file manually.
         """
-        raise IOError('Storing data in a pandas hdf file requires continuous file write access, which is not supported on the taurus cluster. Please consider saving to a temporary file in your user directory and then transferring the file manually.')
+        Save a pandas dataframe to a hdf file on the project space, fileserver or any other location you have write access from a node.
+
+        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `dataframe.to_hdf`.
+
+        Parameters
+        ----------
+        filename : str
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        data : pandas.DataFrame
+        target : str, optional, by default 'project'
+            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
+        all other arguments are passed down to [pandas.DataFrame.to_hdf](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_hdf.html#pandas.DataFrame.to_hdf)
+
+        Returns
+        -------
+        result of pandas.DataFrame.to_json
+
+        """
+        return self.save_file(data.to_hdf, filename, 'data', *args, target=target, **kw)
 
     csv_load = pandas_read_csv
 
