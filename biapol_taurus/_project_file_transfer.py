@@ -203,7 +203,7 @@ class ProjectFileTransfer:
             numpy data
         target : str, optional, by default 'project'
             where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
-        all other arguments are passed down to [numpy.save](https://numpy.org/doc/stable/reference/generated/numpy.save.html)
+        all other arguments are passed down to [numpy.savetxt](https://numpy.org/doc/stable/reference/generated/numpy.savetxt.html)
 
         Returns
         -------
@@ -213,9 +213,9 @@ class ProjectFileTransfer:
         from numpy import savetxt as np_savetxt
         return self.save_file(np_savetxt, filename, data, *args, target=target, **kw)
 
-    def csv_load(self, filename, *args, **kw):
+    def pandas_read_csv(self, filename, *args, **kw):
         """
-        Load a numpy array from a csv file.
+        Load a pandas dataframe from a csv file.
 
         First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
 
@@ -223,39 +223,113 @@ class ProjectFileTransfer:
         ----------
         filename : str
             The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
-        all other arguments are passed down to [numpy.loadtxt](https://numpy.org/doc/stable/reference/generated/numpy.loadtxt.html)
+        all other arguments are passed down to [pandas.read_csv](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#io-read-csv-table)
 
         Returns
         -------
-        ndarray containing the numpy data
+        pandas dataframe containing the csv data
 
         """
-        return self.numpy_loadtxt(filename, *args, **kw)
+        from pandas import read_csv as pd_read_csv
+        full_path = self.get_file(filename)
+        return pd_read_csv(str(full_path), *args, **kw)
 
-    def csv_save(self, filename, data, *args, target: str = 'project', **kw):
+    def pandas_to_csv(self, filename, data, *args, target: str = 'project', **kw):
         """
-        Save an iterable (i.e. a list or a numpy array) to a csv file on the project space, fileserver or any other location you have write access from a node.
+        Save a pandas dataframe to a csv file on the project space, fileserver or any other location you have write access from a node.
 
-        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `numpy.save`.
+        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `dataframe.to_csv`.
 
         Parameters
         ----------
         filename : str
             The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
-        data : ndarray
-            numpy data
+        data : pandas.DataFrame
         target : str, optional, by default 'project'
             where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
-        all other arguments are passed down to [numpy.save](https://numpy.org/doc/stable/reference/generated/numpy.save.html)
+        all other arguments are passed down to [pandas.DataFrame.to_csv](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#io-store-in-csv)
 
         Returns
         -------
-        result of numpy.save
+        result of pandas.DataFrame.to_csv
 
         """
-        return self.numpy_savetxt(filename, data, *args, target=target, **kw)
+        return self.save_file(data.to_csv, filename, *args, target=target, **kw)
 
-    def save_file(self, save_function: callable, filename, data, *args, target: str = 'project', **kw):
+    def pandas_read_json(self, filename, *args, **kw):
+        """
+        Load a pandas dataframe from a json text file.
+
+        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
+
+        Parameters
+        ----------
+        filename : str
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        all other arguments are passed down to [pandas.read_json](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#io-json-reader)
+
+        Returns
+        -------
+        pandas dataframe containing the json data
+
+        """
+        from pandas import read_json as pd_read_json
+        full_path = self.get_file(filename)
+        return pd_read_json(str(full_path), *args, **kw)
+
+    def pandas_to_json(self, filename, data, *args, target: str = 'project', **kw):
+        """
+        Save a pandas dataframe to a json file on the project space, fileserver or any other location you have write access from a node.
+
+        Be aware that on taurus, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just `dataframe.to_csv`.
+
+        Parameters
+        ----------
+        filename : str
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        data : pandas.DataFrame
+        target : str, optional, by default 'project'
+            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
+        all other arguments are passed down to [pandas.DataFrame.to_json](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#io-json-writer)
+
+        Returns
+        -------
+        result of pandas.DataFrame.to_json
+
+        """
+        return self.save_file(data.to_json, filename, *args, target=target, **kw)
+
+    def pandas_read_hdf(self, filename, *args, **kw):
+        """
+        Load a pandas dataframe from a binary hdf file.
+
+        First we look for the file on the project space. If it is not found there, we try to copy it over from the fileserver and then open it.
+
+        Parameters
+        ----------
+        filename : str
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+        all other arguments are passed down to [pandas.read_hdf](https://pandas.pydata.org/docs/reference/api/pandas.read_hdf.html)
+
+        Returns
+        -------
+        pandas dataframe containing the hdf data
+
+        """
+        from pandas import read_hdf as pd_read_hdf
+        full_path = self.get_file(filename)
+        return pd_read_hdf(str(full_path), *args, **kw)
+
+    def pandas_to_hdf(self, filename, data, *args, target: str = 'project', **kw):
+        """Saving a pandas dataframe to a hdf file requires continuous file write access, which is not supported on the taurus cluster. Please consider saving to a temporary file in your user directory and then transferring the file manually.
+        """
+        raise IOError('Storing data in a pandas hdf file requires continuous file write access, which is not supported on the taurus cluster. Please consider saving to a temporary file in your user directory and then transferring the file manually.')
+
+    csv_load = pandas_read_csv
+
+    csv_save = pandas_to_csv
+
+    def save_file(self, save_function: callable, filename: str, *args, target: str = 'project', **kw):
         """
         Save data to a file on the project space, fileserver or any other location you have write access from a node.
 
@@ -280,8 +354,8 @@ class ProjectFileTransfer:
         """
         filename = filename.replace("\\", "/")
         full_path = Path(filename)
-        if os.access(full_path.parent, os.W_OK):
-            return save_function(str(full_path), data, *args, **kw)
+        if os.access(full_path.parent, os.W_OK) and str(full_path.parent) != '.':
+            return save_function(str(full_path), *args, **kw)
         if str(filename).startswith(str(self.target_project_space_dir)):
             target_path = str(self.target_project_space_dir / filename)
         elif str(filename).startswith(str(self.source_fileserver_dir)):
@@ -291,8 +365,8 @@ class ProjectFileTransfer:
                 target_path = str(self.target_project_space_dir / filename)
             else:
                 target_path = str(self.source_fileserver_dir / filename)
-        return save_to_project(save_function, str(
-            target_path), data, *args, **kw)
+        return save_to_project(save_function, str(target_path), *args, cache_workspace=self.cache,
+                               path_to_datamover=self.datamover.path_to_exe, path_to_workspace_tools=self.workspace_exe_path, **kw)
 
     def sync_with_fileserver(self, direction: str = 'from fileserver', delete: bool = False,
                              overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
