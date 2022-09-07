@@ -468,8 +468,8 @@ class ProjectFileTransfer:
 
         Returns
         -------
-        True if the file was deleted successfully (or we didn't wait)
-        False if the timeout was reached
+        pathlib.Path object : if we didn't wait
+        int : exit code of rm operation if we waited
 
         """
         if not str(filename).startswith(str(self.target_project_space_dir)):
@@ -480,11 +480,13 @@ class ProjectFileTransfer:
         process = self.datamover.dtrm('-r', str(filename))
 
         if not wait_for_finish:
-            return True
+            return process
 
         exit_code = waitfor(process)
         if exit_code > 0:
             raise IOError('Could not remove file: {}'.format(str(filename)))
+
+        return exit_code
 
     def _initialize_tmp(self):
         '''Delete all temporary data and create a new, empty temp directory.
