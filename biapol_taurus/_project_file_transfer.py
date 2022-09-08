@@ -491,12 +491,12 @@ class ProjectFileTransfer:
                 'What you are trying to do requires confirmation. Enforcing dry-run...')
             options[0] += 'n'
             process = self.datamover.dtrsync(*options)
-            waitfor(process, discard_output=False)
+            waitfor(process, discard_output=False, quiet=False)
             out, _ = process.communicate()
             raise ConfirmationRequiredException(
                 'If you are sure you know what you are doing, call this method again with te keyword argument "im_sure=True".\nBut before you do that, please carefully check the output of the dry-run and make sure that is what you intended: {}'.format(out))
         process = self.datamover.dtrsync(*options)
-        waitfor(process, discard_output=False)
+        waitfor(process, discard_output=False, quiet=False)
         return process.communicate()
 
     def get_file(self, filename: str, timeout_in_s: float = -1,
@@ -552,7 +552,7 @@ class ProjectFileTransfer:
         # start a process, submitting the copy-job
         process = self.datamover.dtcp('-r', str(source_file),
                                       str(target_file))
-        exit_code = waitfor(process)
+        exit_code = waitfor(process, quiet=False)
         if exit_code > 0:
             raise IOError(
                 'Could not get file from fileserver: {}'.format(
@@ -579,10 +579,7 @@ class ProjectFileTransfer:
         List of strings
         """
         process = self.datamover.dtls('-R1', str(self.source_fileserver_dir))
-        exit_code = waitfor(
-            process,
-            timeout_in_s=timeout_in_s,
-            discard_output=False)
+        exit_code = waitfor(process, timeout_in_s=timeout_in_s, discard_output=False, quiet=False)
         out, err = process.communicate()
         return out.decode('utf-8').split("\n")
 
