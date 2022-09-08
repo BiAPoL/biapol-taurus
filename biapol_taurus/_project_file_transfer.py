@@ -32,7 +32,7 @@ class ProjectFileTransfer:
 
     def __init__(self, source_fileserver_dir: str, target_project_space_dir: str,
                  datamover_path: str = '/sw/taurus/tools/slurmtools/default/bin/',
-                 workspace_exe_path: str = '/usr/bin/'):
+                 workspace_exe_path: str = '/usr/bin/', quiet: bool = False):
         """
         Sets up a connection between a directory on the fileserver and a directory on the project space.
 
@@ -49,6 +49,7 @@ class ProjectFileTransfer:
         self.target_project_space_dir = Path(target_project_space_dir)
         self.datamover = Datamover(path_to_exe=datamover_path)
         self.workspace_exe_path = workspace_exe_path
+        self.quiet = quiet
         self.cache = None
         self.temporary_directory = None
         self._initialize_tmp()
@@ -426,7 +427,7 @@ class ProjectFileTransfer:
             else:
                 target_path = str(self.source_fileserver_dir / filename)
         return save_to_project(save_function, str(target_path), *args, cache_workspace=self.cache,
-                               path_to_datamover=self.datamover.path_to_exe, path_to_workspace_tools=self.workspace_exe_path, **kw)
+                               path_to_datamover=self.datamover.path_to_exe, path_to_workspace_tools=self.workspace_exe_path, quiet=self.quiet, **kw)
 
     def sync_with_fileserver(self, direction: str = 'from fileserver', delete: bool = False,
                              overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
@@ -491,12 +492,12 @@ class ProjectFileTransfer:
                 'What you are trying to do requires confirmation. Enforcing dry-run...')
             options[0] += 'n'
             process = self.datamover.dtrsync(*options)
-            waitfor(process, discard_output=False, quiet=False)
+            waitfor(process, discard_output=False, quiet=self.quiet)
             out, _ = process.communicate()
             raise ConfirmationRequiredException(
                 'If you are sure you know what you are doing, call this method again with te keyword argument "im_sure=True".\nBut before you do that, please carefully check the output of the dry-run and make sure that is what you intended: {}'.format(out))
         process = self.datamover.dtrsync(*options)
-        waitfor(process, discard_output=False, quiet=False)
+        waitfor(process, discard_output=False, quiet=self.quiet)
         return process.communicate()
 
     def get_file(self, filename: str, timeout_in_s: float = -1,
@@ -552,7 +553,7 @@ class ProjectFileTransfer:
         # start a process, submitting the copy-job
         process = self.datamover.dtcp('-r', str(source_file),
                                       str(target_file))
-        exit_code = waitfor(process, quiet=False)
+        exit_code = waitfor(process, quiet=self.quiet)
         if exit_code > 0:
             raise IOError(
                 'Could not get file from fileserver: {}'.format(
@@ -579,7 +580,7 @@ class ProjectFileTransfer:
         List of strings
         """
         process = self.datamover.dtls('-R1', str(self.source_fileserver_dir))
-        exit_code = waitfor(process, timeout_in_s=timeout_in_s, discard_output=False, quiet=False)
+        exit_code = waitfor(process, timeout_in_s=timeout_in_s, discard_output=False, quiet=self.quiet)
         out, err = process.communicate()
         return out.decode('utf-8').split("\n")
 

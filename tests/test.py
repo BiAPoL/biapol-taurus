@@ -35,7 +35,8 @@ class TestProjectFileTransfer(unittest.TestCase):
             source_fileserver_dir=str(self.fileserver_userdir),
             target_project_space_dir=str(self.project_userdir),
             datamover_path=self.mock_cluster.bin_path,
-            workspace_exe_path=self.mock_cluster.bin_path)
+            workspace_exe_path=self.mock_cluster.bin_path,
+            quiet=True)
         self.pandas_dataframe = pd.DataFrame.from_dict(
             {'test column': {'test row': 'a', 'test row2': 'b'}, 'test col2': {'test row': 1, 'test row2': 2}})
         self.pandas_dataframe.to_csv(self.fileserver_userdir / 'testdata.csv')
