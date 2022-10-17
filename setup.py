@@ -16,6 +16,11 @@ setuptools.setup(
     include_package_data=True,
     install_requires=["taurus-datamover", "scikit-image", "numpy"],
     python_requires='>=3.6',
+    extras_require={
+        'image': ['scikit-image'],
+        'numpy': ['numpy'],
+        'pandas': ['pandas', 'xlwt', 'xlrd', 'pytables'],
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
