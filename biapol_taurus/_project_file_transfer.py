@@ -641,7 +641,10 @@ class ProjectFileTransfer:
             if exit_code > 0:
                 raise IOError('Could not create target project space dir: {}'.format(
                     str(self.target_project_space_dir)))
-            shutil.rmtree(cached_target_dir.parents[i])
+            if i < 1:
+                shutil.rmtree(cached_target_dir)
+            else:
+                shutil.rmtree(cached_target_dir.parents[i - 1])
 
     def __del__(self):
         '''Clean up the cache when the object is deleted
