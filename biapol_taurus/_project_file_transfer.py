@@ -635,10 +635,10 @@ class ProjectFileTransfer:
                 i += 1
             cached_target_dir = self.temporary_directory_path.joinpath(*self.target_project_space_dir.parts[-(i + 1):])
             cached_target_dir.mkdir(parents=True, exist_ok=True)
-            process = self.datamover.dtrsync('-a', self.temporary_directory.name + '/',
+            process = self.datamover.dtrsync('-r', self.temporary_directory.name + '/',
                                              str(self.target_project_space_dir.parents[i]) + '/')
             exit_code = waitfor(process)
-            if exit_code > 0:
+            if not self.target_project_space_dir.exists():
                 raise IOError('Could not create target project space dir: {}'.format(
                     str(self.target_project_space_dir)))
             if i < 1:
