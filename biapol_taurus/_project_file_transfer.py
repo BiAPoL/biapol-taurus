@@ -2,6 +2,7 @@ import os
 import warnings
 import tempfile
 from pathlib import Path
+import shutil
 from taurus_datamover import Datamover, CacheWorkspace, waitfor, save_to_project
 
 
@@ -629,18 +630,18 @@ class ProjectFileTransfer:
 
     def _ensure_project_dir_exists(self):
         if not self.target_project_space_dir.exists():
-            with tempfile.TemporaryDirectory() as temporary_dir:
-                i = 0
-                while self.target_project_space_dir.parents[i].exists() == False:
-                    i += 1
-                cached_target_dir = Path(temporary_dir).joinpath(*self.target_project_space_dir.parts[-(i + 1):])
-                cached_target_dir.mkdir(parents=True, exist_ok=True)
-                process = self.datamover.dtrsync('-a', temporary_dir + '/',
-                                                 str(self.target_project_space_dir.parents[i]) + '/')
-                exit_code = waitfor(process)
+            i = 0
+            while self.target_project_space_dir.parents[i].exists() == False:
+                i += 1
+            cached_target_dir = self.temporary_directory_path.joinpath(*self.target_project_space_dir.parts[-(i + 1):])
+            cached_target_dir.mkdir(parents=True, exist_ok=True)
+            process = self.datamover.dtrsync('-a', self.temporary_directory.name + '/',
+                                             str(self.target_project_space_dir.parents[i]) + '/')
+            exit_code = waitfor(process)
             if exit_code > 0:
                 raise IOError('Could not create target project space dir: {}'.format(
                     str(self.target_project_space_dir)))
+            shutil.rmtree(cached_target_dir.parents[i])
 
     def __del__(self):
         '''Clean up the cache when the object is deleted
