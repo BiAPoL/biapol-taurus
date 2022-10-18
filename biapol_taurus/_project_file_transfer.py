@@ -627,6 +627,7 @@ class ProjectFileTransfer:
         self.cache = CacheWorkspace(path_to_exe=self.workspace_exe_path)
         self.temporary_directory = tempfile.TemporaryDirectory(prefix=self.cache.name + '/')
         self.temporary_directory_path = Path(self.temporary_directory.name)
+        assert self.temporary_directory_path.exists(), 'Failed to create temporary directory. Please make sure that the cache workspace was initialized correctly by executing "ws_list" on a command line (e.g. execute "!ws_list" in a jupyter notebook). Then delete and re-create the ProjectFileTransfer object.'
 
     def _ensure_project_dir_exists(self):
         if not self.target_project_space_dir.exists():
