@@ -486,19 +486,6 @@ class ProjectFileTransfer:
         return [str(f)
                 for f in sorted(self.target_project_space_dir.glob('**/*'))]
 
-    def list_fileserver_files(self, timeout_in_s: float = 30):
-        """
-        Get a list of files located in the project space
-
-        Returns
-        -------
-        List of strings
-        """
-        process = self.datamover.dtls('-R1', str(self.source_fileserver_dir))
-        exit_code = waitfor(process, timeout_in_s=timeout_in_s, discard_output=False, quiet=self.quiet)
-        out, err = process.communicate()
-        return out.decode('utf-8').split("\n")
-
     def remove_file(self, filename, wait_for_finish: bool = False):
         """
         Removes a given file from the project space.
@@ -606,6 +593,19 @@ class ProjectFileTransfer:
 
         return self._sync(direction='to fileserver', delete=delete,
                           overwrite_newer=overwrite_newer, im_sure=im_sure, dry_run=dry_run)
+
+    def _list_fileserver_files(self, timeout_in_s: float = 30):
+        """
+        Get a list of files located in the project space
+
+        Returns
+        -------
+        List of strings
+        """
+        process = self.datamover.dtls('-R1', str(self.source_fileserver_dir))
+        exit_code = waitfor(process, timeout_in_s=timeout_in_s, discard_output=False, quiet=self.quiet)
+        out, err = process.communicate()
+        return out.decode('utf-8').split("\n")
 
     def _sync(self, direction: str = 'from fileserver', delete: bool = False,
               overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
