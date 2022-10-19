@@ -56,7 +56,7 @@ class TestProjectFileTransfer(unittest.TestCase):
         self.assertTrue(self.project_userdir.exists())
 
     def test_sync_from_fileserver(self):
-        self.pft.sync_with_fileserver()
+        self.pft.sync_from_fileserver()
         self.assertTrue((self.project_userdir / 'testdata.npy').exists())
         self.assertTrue((self.project_userdir / 'testimage.tif').exists())
         numpy_data = np.load(self.project_userdir / 'testdata.npy')
@@ -64,7 +64,7 @@ class TestProjectFileTransfer(unittest.TestCase):
 
     def test_sync_to_fileserver(self):
         np.save(self.project_userdir / 'testdata_new.npy', self.testdata, allow_pickle=False)
-        self.pft.sync_with_fileserver(direction='to fileserver')
+        self.pft.sync_to_fileserver()
         self.assertTrue((self.fileserver_userdir / 'testdata_new.npy').exists())
         self.assertTrue((self.fileserver_userdir / 'testdata.npy').exists())
         self.assertTrue((self.fileserver_userdir / 'testimage.tif').exists())
@@ -74,14 +74,13 @@ class TestProjectFileTransfer(unittest.TestCase):
     def test_sync_delete_not_confirmed(self):
         self.assertRaises(
             biapol_taurus.ConfirmationRequiredException,
-            self.pft.sync_with_fileserver,
-            direction='to fileserver',
+            self.pft.sync_to_fileserver,
             delete=True)
         self.assertTrue((self.fileserver_userdir / 'testdata.npy').exists())
         self.assertTrue((self.fileserver_userdir / 'testimage.tif').exists())
 
     def test_sync_delete_confirmed(self):
-        self.pft.sync_with_fileserver(direction='to fileserver', delete=True, im_sure=True)
+        self.pft.sync_to_fileserver(delete=True, im_sure=True)
         self.assertFalse((self.fileserver_userdir / 'testdata.npy').exists())
         self.assertFalse((self.fileserver_userdir / 'testimage.tif').exists())
 
@@ -89,7 +88,7 @@ class TestProjectFileTransfer(unittest.TestCase):
         new_testdata = np.random.randn(64, 64)
         sleep(1)  # ensure that the source testdata file is at least 1s newer than the target file
         np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
-        self.pft.sync_with_fileserver(direction='to fileserver')
+        self.pft.sync_to_fileserver()
         self.assertTrue((self.fileserver_userdir / 'testdata.npy').exists())
         self.assertTrue((self.fileserver_userdir / 'testimage.tif').exists())
         numpy_data = np.load(self.fileserver_userdir / 'testdata.npy')
@@ -101,7 +100,7 @@ class TestProjectFileTransfer(unittest.TestCase):
         np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
         sleep(1)  # ensure that the target testdata file is at least 1s newer than the source file
         np.save(self.fileserver_userdir / 'testdata.npy', self.testdata, allow_pickle=False)
-        self.pft.sync_with_fileserver(direction='to fileserver')
+        self.pft.sync_to_fileserver()
         self.assertTrue((self.fileserver_userdir / 'testdata.npy').exists())
         self.assertTrue((self.fileserver_userdir / 'testimage.tif').exists())
         numpy_data = np.load(self.fileserver_userdir / 'testdata.npy')
@@ -113,8 +112,7 @@ class TestProjectFileTransfer(unittest.TestCase):
         np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
         self.assertRaises(
             biapol_taurus.ConfirmationRequiredException,
-            self.pft.sync_with_fileserver,
-            direction='to fileserver',
+            self.pft.sync_to_fileserver,
             overwrite_newer=True)
         self.assertTrue((self.fileserver_userdir / 'testdata.npy').exists())
         self.assertTrue((self.fileserver_userdir / 'testimage.tif').exists())
@@ -127,7 +125,7 @@ class TestProjectFileTransfer(unittest.TestCase):
         np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
         sleep(1)  # ensure that the target testdata file is at least 1s newer than the source file
         np.save(self.fileserver_userdir / 'testdata.npy', self.testdata, allow_pickle=False)
-        self.pft.sync_with_fileserver(direction='to fileserver', overwrite_newer=True, im_sure=True)
+        self.pft.sync_to_fileserver(overwrite_newer=True, im_sure=True)
         self.assertTrue((self.fileserver_userdir / 'testdata.npy').exists())
         self.assertTrue((self.fileserver_userdir / 'testimage.tif').exists())
         numpy_data = np.load(self.fileserver_userdir / 'testdata.npy')
