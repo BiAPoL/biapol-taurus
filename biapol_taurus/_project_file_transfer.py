@@ -430,78 +430,6 @@ class ProjectFileTransfer:
         return save_to_project(save_function, str(target_path), *args, cache_workspace=self.cache,
                                path_to_datamover=self.datamover.path_to_exe, path_to_workspace_tools=self.workspace_exe_path, quiet=self.quiet, **kw)
 
-    def sync_from_fileserver(self, delete: bool = False, overwrite_newer: bool = False,
-                             im_sure: bool = False, dry_run: bool = False, background: bool = True):
-        '''Synchronize a whole directory tree from the fileserver to the project space (using rsync). By default, does not delete files, but overwrites existing files if they are older.
-
-        Beware that this recursively copies _all_ the data. So if you have an error in source mount or target project space, this might create a mess.
-        If you are unsure, first call the method with dry_run=True. That way, no data will be transferred, and you can check the output.
-        This behavior is enforced for dangerous operations that might cause data loss.
-        Dangerous operations are:
-        1. setting delete=True
-        2. setting overwrite_newer=True
-        3. syncing the entire fileserver with the entire project space.
-
-        Parameters
-        ----------
-        delete : bool, optional
-            Delete files that do not exist on the fileserver on the target project space (add rsync --delete flag), by default False
-        overwrite_newer : bool, optional
-            Overwrite files on the target project space even if they are newer (removes rsync -u flag), by default False
-        im_sure : bool, optional
-            Confirm that you are sure and skip the dry-run for dangerous operations, by default False
-        dry_run : bool, optional
-            Enforce a dry-run (add rsunc -n flag), by default False
-        background : bool, optional
-            Run in the background and do not wait until the sync is complete, by default True
-
-        Returns
-        -------
-        subprocess.CompletedProcess object (if bacground=True (default))
-            the CompletedProcess object created by subprocess.Popen. This can be used to retrieve the command output with the communicate() method: https://docs.python.org/3/library/subprocess.html
-        tuple of strings (if background=False)
-            the first element of the tuple is the standard output (stdout) of the process, the second element is the error (stderr).
-        '''
-
-        return self._sync(direction='from fileserver', delete=delete,
-                          overwrite_newer=overwrite_newer, im_sure=im_sure, dry_run=dry_run)
-
-    def sync_to_fileserver(self, delete: bool = False, overwrite_newer: bool = False,
-                           im_sure: bool = False, dry_run: bool = False, background: bool = True):
-        '''Synchronize a whole directory tree from the project space on the cluster to the fileserver (using rsync). By default, does not delete files, but overwrites existing files if they are older.
-
-        Beware that this recursively copies _all_ the data. So if you have an error in source mount or target project space, this might create a mess.
-        If you are unsure, first call the method with dry_run=True. That way, no data will be transferred, and you can check the output.
-        This behavior is enforced for dangerous operations that might cause data loss.
-        Dangerous operations are:
-        1. setting delete=True
-        2. setting overwrite_newer=True
-        3. syncing the entire fileserver with the entire project space.
-
-        Parameters
-        ----------
-        delete : bool, optional
-            Delete files that do not exist on the fileserver on the target project space (add rsync --delete flag), by default False
-        overwrite_newer : bool, optional
-            Overwrite files on the target project space even if they are newer (removes rsync -u flag), by default False
-        im_sure : bool, optional
-            Confirm that you are sure and skip the dry-run for dangerous operations, by default False
-        dry_run : bool, optional
-            Enforce a dry-run (add rsunc -n flag), by default False
-        background : bool, optional
-            Run in the background and do not wait until the sync is complete, by default True
-
-        Returns
-        -------
-        subprocess.CompletedProcess object (if bacground=True (default))
-            the CompletedProcess object created by subprocess.Popen. This can be used to retrieve the command output with the communicate() method: https://docs.python.org/3/library/subprocess.html
-        tuple of strings (if background=False)
-            the first element of the tuple is the standard output (stdout) of the process, the second element is the error (stderr).
-        '''
-
-        return self._sync(direction='to fileserver', delete=delete,
-                          overwrite_newer=overwrite_newer, im_sure=im_sure, dry_run=dry_run)
-
     def get_file(self, filename: str, timeout_in_s: float = -1,
                  wait_for_finish: bool = True) -> Path:
         '''Ensures that the computing node has access to a file. If necessary, the file is retrieved from a mounted fileserver share.
@@ -621,6 +549,78 @@ class ProjectFileTransfer:
             raise IOError('Could not remove file: {}'.format(str(filename)))
 
         return exit_code
+
+    def sync_from_fileserver(self, delete: bool = False, overwrite_newer: bool = False,
+                             im_sure: bool = False, dry_run: bool = False, background: bool = True):
+        '''Synchronize a whole directory tree from the fileserver to the project space (using rsync). By default, does not delete files, but overwrites existing files if they are older.
+
+        Beware that this recursively copies _all_ the data. So if you have an error in source mount or target project space, this might create a mess.
+        If you are unsure, first call the method with dry_run=True. That way, no data will be transferred, and you can check the output.
+        This behavior is enforced for dangerous operations that might cause data loss.
+        Dangerous operations are:
+        1. setting delete=True
+        2. setting overwrite_newer=True
+        3. syncing the entire fileserver with the entire project space.
+
+        Parameters
+        ----------
+        delete : bool, optional
+            Delete files that do not exist on the fileserver on the target project space (add rsync --delete flag), by default False
+        overwrite_newer : bool, optional
+            Overwrite files on the target project space even if they are newer (removes rsync -u flag), by default False
+        im_sure : bool, optional
+            Confirm that you are sure and skip the dry-run for dangerous operations, by default False
+        dry_run : bool, optional
+            Enforce a dry-run (add rsunc -n flag), by default False
+        background : bool, optional
+            Run in the background and do not wait until the sync is complete, by default True
+
+        Returns
+        -------
+        subprocess.CompletedProcess object (if bacground=True (default))
+            the CompletedProcess object created by subprocess.Popen. This can be used to retrieve the command output with the communicate() method: https://docs.python.org/3/library/subprocess.html
+        tuple of strings (if background=False)
+            the first element of the tuple is the standard output (stdout) of the process, the second element is the error (stderr).
+        '''
+
+        return self._sync(direction='from fileserver', delete=delete,
+                          overwrite_newer=overwrite_newer, im_sure=im_sure, dry_run=dry_run)
+
+    def sync_to_fileserver(self, delete: bool = False, overwrite_newer: bool = False,
+                           im_sure: bool = False, dry_run: bool = False, background: bool = True):
+        '''Synchronize a whole directory tree from the project space on the cluster to the fileserver (using rsync). By default, does not delete files, but overwrites existing files if they are older.
+
+        Beware that this recursively copies _all_ the data. So if you have an error in source mount or target project space, this might create a mess.
+        If you are unsure, first call the method with dry_run=True. That way, no data will be transferred, and you can check the output.
+        This behavior is enforced for dangerous operations that might cause data loss.
+        Dangerous operations are:
+        1. setting delete=True
+        2. setting overwrite_newer=True
+        3. syncing the entire fileserver with the entire project space.
+
+        Parameters
+        ----------
+        delete : bool, optional
+            Delete files that do not exist on the fileserver on the target project space (add rsync --delete flag), by default False
+        overwrite_newer : bool, optional
+            Overwrite files on the target project space even if they are newer (removes rsync -u flag), by default False
+        im_sure : bool, optional
+            Confirm that you are sure and skip the dry-run for dangerous operations, by default False
+        dry_run : bool, optional
+            Enforce a dry-run (add rsunc -n flag), by default False
+        background : bool, optional
+            Run in the background and do not wait until the sync is complete, by default True
+
+        Returns
+        -------
+        subprocess.CompletedProcess object (if bacground=True (default))
+            the CompletedProcess object created by subprocess.Popen. This can be used to retrieve the command output with the communicate() method: https://docs.python.org/3/library/subprocess.html
+        tuple of strings (if background=False)
+            the first element of the tuple is the standard output (stdout) of the process, the second element is the error (stderr).
+        '''
+
+        return self._sync(direction='to fileserver', delete=delete,
+                          overwrite_newer=overwrite_newer, im_sure=im_sure, dry_run=dry_run)
 
     def _sync(self, direction: str = 'from fileserver', delete: bool = False,
               overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
