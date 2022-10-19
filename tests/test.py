@@ -212,7 +212,8 @@ class TestProjectFileTransfer(unittest.TestCase):
 
     def test_save_file_fileserver(self):
         fileserver_file = self.fileserver_userdir / 'saved_data.npy'
-        self.pft.save_file(np.save, 'saved_data.npy', self.testdata, target='fileserver', allow_pickle=False)
+        self.pft.save_target = 'fileserver'
+        self.pft.save_file(np.save, 'saved_data.npy', self.testdata, allow_pickle=False)
         self.assertTrue(fileserver_file.exists())
         numpy_data = np.load(fileserver_file)
         self.assertTrue(np.array_equal(self.testdata, numpy_data))
@@ -227,7 +228,8 @@ class TestProjectFileTransfer(unittest.TestCase):
     def test_csv(self):
         with self.subTest('save csv'):
             test_file = self.fileserver_userdir / 'saved.csv'
-            self.pft.csv_save('saved.csv', self.pandas_dataframe, target='fileserver')
+            self.pft.save_target = 'fileserver'
+            self.pft.csv_save('saved.csv', self.pandas_dataframe)
             self.assertTrue(test_file.exists())
         with self.subTest('load csv'):
             df = self.pft.csv_load('saved.csv', index_col=0)
@@ -237,7 +239,8 @@ class TestProjectFileTransfer(unittest.TestCase):
     def test_pandas_json(self):
         with self.subTest('to json'):
             test_file = self.fileserver_userdir / 'saved.json'
-            self.pft.pandas_to_json('saved.json', self.pandas_dataframe, target='fileserver')
+            self.pft.save_target = 'fileserver'
+            self.pft.pandas_to_json('saved.json', self.pandas_dataframe)
             self.assertTrue(test_file.exists())
         with self.subTest('read json'):
             df = self.pft.pandas_read_json('saved.json')
@@ -249,7 +252,8 @@ class TestProjectFileTransfer(unittest.TestCase):
         filename = 'saved.' + ext
         with self.subTest('to ' + ext):
             test_file = self.fileserver_userdir / filename
-            self.pft.pandas_to_hdf(filename, self.pandas_dataframe, target='fileserver')
+            self.pft.save_target = 'fileserver'
+            self.pft.pandas_to_hdf(filename, self.pandas_dataframe)
             self.assertTrue(test_file.exists())
         with self.subTest('read ' + ext):
             df = self.pft.pandas_read_hdf(filename)
@@ -261,7 +265,8 @@ class TestProjectFileTransfer(unittest.TestCase):
         filename = 'saved.' + ext
         with self.subTest('to ' + ext):
             test_file = self.fileserver_userdir / filename
-            self.pft.pandas_to_excel(filename, self.pandas_dataframe, target='fileserver')
+            self.pft.save_target = 'fileserver'
+            self.pft.pandas_to_excel(filename, self.pandas_dataframe)
             self.assertTrue(test_file.exists())
         with self.subTest('read ' + ext):
             df = self.pft.pandas_read_excel(filename, index_col=0)
@@ -273,7 +278,8 @@ class TestProjectFileTransfer(unittest.TestCase):
         filename = 'saved.' + ext
         with self.subTest('to ' + ext):
             test_file = self.fileserver_userdir / filename
-            self.pft.numpy_savetxt(filename, self.testdata, target='fileserver')
+            self.pft.save_target = 'fileserver'
+            self.pft.numpy_savetxt(filename, self.testdata)
             self.assertTrue(test_file.exists())
         with self.subTest('read ' + ext):
             loaded = self.pft.numpy_loadtxt(filename)
@@ -284,7 +290,8 @@ class TestProjectFileTransfer(unittest.TestCase):
         filename = 'saved.' + ext
         with self.subTest('to ' + ext):
             test_file = self.fileserver_userdir / filename
-            self.pft.numpy_save(filename, self.testdata, target='fileserver')
+            self.pft.save_target = 'fileserver'
+            self.pft.numpy_save(filename, self.testdata)
             self.assertTrue(test_file.exists())
         with self.subTest('read ' + ext):
             loaded = self.pft.numpy_load(filename)
@@ -295,7 +302,8 @@ class TestProjectFileTransfer(unittest.TestCase):
         filename = 'saved.' + ext
         with self.subTest('to ' + ext):
             test_file = self.fileserver_userdir / filename
-            self.pft.numpy_savez_compressed(filename, self.testdata, target='fileserver')
+            self.pft.save_target = 'fileserver'
+            self.pft.numpy_savez_compressed(filename, self.testdata)
             self.assertTrue(test_file.exists())
         with self.subTest('read ' + ext):
             loaded = self.pft.numpy_load(filename)
@@ -306,7 +314,8 @@ class TestProjectFileTransfer(unittest.TestCase):
         filename = 'saved.' + ext
         with self.subTest('to ' + ext):
             test_file = self.fileserver_userdir / filename
-            self.pft.imsave(filename, self.testdata, target='fileserver')
+            self.pft.save_target = 'fileserver'
+            self.pft.imsave(filename, self.testdata)
             self.assertTrue(test_file.exists())
         with self.subTest('read ' + ext):
             loaded = self.pft.imread(filename)

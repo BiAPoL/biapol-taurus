@@ -32,6 +32,7 @@ class ProjectFileTransfer:
     """
 
     def __init__(self, source_fileserver_dir: str, target_project_space_dir: str,
+                 save_target: str = 'project',
                  datamover_path: str = '/sw/taurus/tools/slurmtools/default/bin/',
                  workspace_exe_path: str = '/usr/bin/', quiet: bool = False):
         """
@@ -43,11 +44,14 @@ class ProjectFileTransfer:
             Fileserver mount on the export node, e.g. /grp/g_my_group/userdir/
         target_project : str
             Project space on the cluster, e.g. /projects/p_my_project/userdir/
+        save_target : str, optional, by default 'project'
+            where files should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         datamover_path: str, optional
             the path where the datamover tools reside, by default /sw/taurus/tools/slurmtools/default/bin/
         """
         self.source_fileserver_dir = Path(source_fileserver_dir)
         self.target_project_space_dir = Path(target_project_space_dir)
+        self.save_target = save_target
         self.datamover = Datamover(path_to_exe=datamover_path)
         self.workspace_exe_path = workspace_exe_path
         self.quiet = quiet
@@ -77,7 +81,7 @@ class ProjectFileTransfer:
         full_path = self.get_file(filename)
         return imread(str(full_path), *args, **kw)
 
-    def imsave(self, filename, data, *args, target: str = 'project', **kw):
+    def imsave(self, filename, data, *args, **kw):
         """
         Save an image to a file on the project space, fileserver or any other location you have write access from a node.
 
@@ -89,8 +93,6 @@ class ProjectFileTransfer:
             The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to `target_project_space_dir` or to `source_fileserver_dir`.
         data : ndarray
             image data
-        target : str, optional, by default 'project'
-            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         all other arguments are passed down to [scikit-image.io.imsave](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imsave)
 
         Returns
@@ -99,7 +101,7 @@ class ProjectFileTransfer:
 
         """
         from skimage.io import imsave
-        return self.save_file(imsave, filename, data, *args, target=target, **kw)
+        return self.save_file(imsave, filename, data, *args, **kw)
 
     def numpy_load(self, filename, *args, **kw):
         """
@@ -122,7 +124,7 @@ class ProjectFileTransfer:
         full_path = self.get_file(filename)
         return np_load(str(full_path), *args, **kw)
 
-    def numpy_save(self, filename, data, *args, target: str = 'project', **kw):
+    def numpy_save(self, filename, data, *args, **kw):
         """
         Save a numpy array to a file on the project space, fileserver or any other location you have write access from a node.
 
@@ -134,8 +136,6 @@ class ProjectFileTransfer:
             The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
         data : ndarray
             numpy data
-        target : str, optional, by default 'project'
-            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         all other arguments are passed down to [numpy.save](https://numpy.org/doc/stable/reference/generated/numpy.save.html)
 
         Returns
@@ -144,9 +144,9 @@ class ProjectFileTransfer:
 
         """
         from numpy import save as np_save
-        return self.save_file(np_save, filename, data, *args, target=target, **kw)
+        return self.save_file(np_save, filename, data, *args, **kw)
 
-    def numpy_savez_compressed(self, filename, data, *args, target: str = 'project', **kw):
+    def numpy_savez_compressed(self, filename, data, *args, **kw):
         """
         Save several numpy arrays into a single file in compressed .npz format to the project space, fileserver or any other location you have write access from a node.
 
@@ -158,8 +158,6 @@ class ProjectFileTransfer:
             The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
         data : ndarray
             numpy data
-        target : str, optional, by default 'project'
-            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         all other arguments are passed down to [numpy.savez_compressed](https://numpy.org/doc/stable/reference/generated/numpy.savez_compressed.html)
 
         Returns
@@ -168,7 +166,7 @@ class ProjectFileTransfer:
 
         """
         from numpy import savez_compressed as np_savez_compressed
-        return self.save_file(np_savez_compressed, filename, data, *args, target=target, **kw)
+        return self.save_file(np_savez_compressed, filename, data, *args, **kw)
 
     def numpy_loadtxt(self, filename, *args, **kw):
         """
@@ -191,7 +189,7 @@ class ProjectFileTransfer:
         full_path = self.get_file(filename)
         return np_loadtxt(str(full_path), *args, **kw)
 
-    def numpy_savetxt(self, filename, data, *args, target: str = 'project', **kw):
+    def numpy_savetxt(self, filename, data, *args, **kw):
         """
         Save a numpy array to a text file on the project space, fileserver or any other location you have write access from a node.
 
@@ -203,8 +201,6 @@ class ProjectFileTransfer:
             The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
         data : ndarray
             numpy data
-        target : str, optional, by default 'project'
-            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         all other arguments are passed down to [numpy.savetxt](https://numpy.org/doc/stable/reference/generated/numpy.savetxt.html)
 
         Returns
@@ -213,7 +209,7 @@ class ProjectFileTransfer:
 
         """
         from numpy import savetxt as np_savetxt
-        return self.save_file(np_savetxt, filename, data, *args, target=target, **kw)
+        return self.save_file(np_savetxt, filename, data, *args, **kw)
 
     def pandas_read_csv(self, filename, *args, **kw):
         """
@@ -236,7 +232,7 @@ class ProjectFileTransfer:
         full_path = self.get_file(filename)
         return pd_read_csv(str(full_path), *args, **kw)
 
-    def pandas_to_csv(self, filename, data, *args, target: str = 'project', **kw):
+    def pandas_to_csv(self, filename, data, *args, **kw):
         """
         Save a pandas dataframe to a csv file on the project space, fileserver or any other location you have write access from a node.
 
@@ -247,8 +243,6 @@ class ProjectFileTransfer:
         filename : str
             The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
         data : pandas.DataFrame
-        target : str, optional, by default 'project'
-            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         all other arguments are passed down to [pandas.DataFrame.to_csv](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#io-store-in-csv)
 
         Returns
@@ -256,7 +250,7 @@ class ProjectFileTransfer:
         result of pandas.DataFrame.to_csv
 
         """
-        return self.save_file(data.to_csv, filename, *args, target=target, **kw)
+        return self.save_file(data.to_csv, filename, *args, **kw)
 
     def pandas_read_json(self, filename, *args, **kw):
         """
@@ -279,7 +273,7 @@ class ProjectFileTransfer:
         full_path = self.get_file(filename)
         return pd_read_json(str(full_path), *args, **kw)
 
-    def pandas_to_json(self, filename, data, *args, target: str = 'project', **kw):
+    def pandas_to_json(self, filename, data, *args, **kw):
         """
         Save a pandas dataframe to a json file on the project space, fileserver or any other location you have write access from a node.
 
@@ -290,8 +284,6 @@ class ProjectFileTransfer:
         filename : str
             The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
         data : pandas.DataFrame
-        target : str, optional, by default 'project'
-            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         all other arguments are passed down to [pandas.DataFrame.to_json](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#io-json-writer)
 
         Returns
@@ -299,7 +291,7 @@ class ProjectFileTransfer:
         result of pandas.DataFrame.to_json
 
         """
-        return self.save_file(data.to_json, filename, *args, target=target, **kw)
+        return self.save_file(data.to_json, filename, *args, **kw)
 
     def pandas_read_excel(self, filename, *args, **kw):
         """
@@ -322,7 +314,7 @@ class ProjectFileTransfer:
         full_path = self.get_file(filename)
         return pd_read_excel(str(full_path), *args, **kw)
 
-    def pandas_to_excel(self, filename, data, *args, target: str = 'project', **kw):
+    def pandas_to_excel(self, filename, data, *args, **kw):
         """
         Save a pandas dataframe to an excel file on the project space, fileserver or any other location you have write access from a node.
 
@@ -333,8 +325,6 @@ class ProjectFileTransfer:
         filename : str
             The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
         data : pandas.DataFrame
-        target : str, optional, by default 'project'
-            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         all other arguments are passed down to [pandas.DataFrame.to_excel](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel)
 
         Returns
@@ -342,7 +332,7 @@ class ProjectFileTransfer:
         result of pandas.DataFrame.to_excel
 
         """
-        return self.save_file(data.to_excel, filename, *args, target=target, **kw)
+        return self.save_file(data.to_excel, filename, *args, **kw)
 
     def pandas_read_hdf(self, filename, *args, **kw):
         """
@@ -365,7 +355,7 @@ class ProjectFileTransfer:
         full_path = self.get_file(filename)
         return pd_read_hdf(str(full_path), *args, **kw)
 
-    def pandas_to_hdf(self, filename, data, *args, target: str = 'project', **kw):
+    def pandas_to_hdf(self, filename, data, *args, **kw):
         """
         Save a pandas dataframe to a hdf file on the project space, fileserver or any other location you have write access from a node.
 
@@ -376,22 +366,20 @@ class ProjectFileTransfer:
         filename : str
             The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
         data : pandas.DataFrame
-        target : str, optional, by default 'project'
-            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
-        all other arguments are passed down to [pandas.DataFrame.to_hdf](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_hdf.html#pandas.DataFrame.to_hdf)
+       all other arguments are passed down to [pandas.DataFrame.to_hdf](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_hdf.html#pandas.DataFrame.to_hdf)
 
         Returns
         -------
         result of pandas.DataFrame.to_json
 
         """
-        return self.save_file(data.to_hdf, filename, 'data', *args, target=target, **kw)
+        return self.save_file(data.to_hdf, filename, 'data', *args, **kw)
 
     csv_load = pandas_read_csv
 
     csv_save = pandas_to_csv
 
-    def save_file(self, save_function: callable, filename: str, *args, target: str = 'project', **kw):
+    def save_file(self, save_function: callable, filename: str, *args, **kw):
         """
         Save data to a file on the project space, fileserver or any other location you have write access from a node.
 
@@ -405,8 +393,6 @@ class ProjectFileTransfer:
             The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
         data : ndarray
             image data
-        target : str, optional
-            where the file should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
         all other arguments are passed down to save_function
 
         Returns
@@ -414,7 +400,6 @@ class ProjectFileTransfer:
         result of save_function
 
         """
-        filename = filename.replace("\\", "/")
         full_path = Path(filename)
         if os.access(full_path.parent, os.W_OK) and str(full_path.parent) != '.':
             return save_function(str(full_path), *args, **kw)
@@ -423,7 +408,7 @@ class ProjectFileTransfer:
         elif str(filename).startswith(str(self.source_fileserver_dir)):
             target_path = str(self.source_fileserver_dir / filename)
         else:
-            if target != 'fileserver':
+            if self.save_target == 'project':
                 target_path = str(self.target_project_space_dir / filename)
             else:
                 target_path = str(self.source_fileserver_dir / filename)
