@@ -16,14 +16,12 @@ class ProjectFileTransfer:
     """
     Connects a project space on the cluster with a fileserver share via an export node.
 
-    After initializing, source mount and target project space, you can:
+    After initializing, source_dir, you can:
     * `imread` an image file from the fileserver
     * `imsave` an image file to the fileserver
-    * `sync_with_fileserver` Synchronize a whole directory tree with the fileserver (using rsync).
-    * `get_file`s to the project space,
-    * `list_files` in the project space and
-    * `list_fileserver_files` list files on the fileserver
-    * `remove_file`s from the project space.
+    * `sync_from_fileserver` Synchronize a whole directory from the fileserver to the local scratch drive (using rsync).
+    * `get_file`s from the fileserver,
+    * `list_files` on the scratch drive and
 
     See also
     --------
@@ -31,8 +29,7 @@ class ProjectFileTransfer:
     .. [1] https://gitlab.mn.tu-dresden.de/bia-pol/taurus-datamover
     """
 
-    def __init__(self, source_fileserver_dir: str, target_project_space_dir: str,
-                 save_target: str = 'project',
+    def __init__(self, source_dir: str,
                  datamover_path: str = '/sw/taurus/tools/slurmtools/default/bin/',
                  workspace_exe_path: str = '/usr/bin/', quiet: bool = False):
         """
@@ -40,25 +37,19 @@ class ProjectFileTransfer:
 
         Parameters
         ----------
-        source_fileserver_dir : str
-            Fileserver mount on the export node, e.g. /grp/g_my_group/userdir/
-        target_project : str
-            Project space on the cluster, e.g. /projects/p_my_project/userdir/
-        save_target : str, optional, by default 'project'
-            where files should be saved. 'fileserver' means the file will be saved to 'source_fileserver_dir' otherwise, 'target project_space_dir'
+        source_dir : str
+            Fileserver mount or project space on the export node, e.g. /grp/g_my_group/userdir/
         datamover_path: str, optional
             the path where the datamover tools reside, by default /sw/taurus/tools/slurmtools/default/bin/
         """
-        self.source_fileserver_dir = Path(source_fileserver_dir)
-        self.target_project_space_dir = Path(target_project_space_dir)
-        self.save_target = save_target
+        self.source_dir = Path(source_dir)
         self.datamover = Datamover(path_to_exe=datamover_path)
         self.workspace_exe_path = workspace_exe_path
         self.quiet = quiet
         self.cache = None
+        self.cache_path = None
         self.temporary_directory = None
         self._initialize_tmp()
-        self._ensure_project_dir_exists()
 
     def imread(self, filename, *args, **kw):
         """
@@ -69,7 +60,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative to `source_dir`.
         all other arguments are passed down to [scikit-image.io.imread](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imread)
 
         Returns
@@ -78,7 +69,7 @@ class ProjectFileTransfer:
 
         """
         from skimage.io import imread
-        full_path = self.get_file(filename)
+        full_path = self.load_file(filename)
         return imread(str(full_path), *args, **kw)
 
     def imsave(self, filename, data, *args, **kw):
@@ -90,7 +81,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to `target_project_space_dir` or to `source_fileserver_dir`.
+            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
         data : ndarray
             image data
         all other arguments are passed down to [scikit-image.io.imsave](https://scikit-image.org/docs/dev/api/skimage.io.html#skimage.io.imsave)
@@ -112,7 +103,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative to `source_dir`.
         all other arguments are passed down to [numpy.load](https://numpy.org/doc/stable/reference/generated/numpy.load.html)
 
         Returns
@@ -121,7 +112,7 @@ class ProjectFileTransfer:
 
         """
         from numpy import load as np_load
-        full_path = self.get_file(filename)
+        full_path = self.load_file(filename)
         return np_load(str(full_path), *args, **kw)
 
     def numpy_save(self, filename, data, *args, **kw):
@@ -133,7 +124,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
         data : ndarray
             numpy data
         all other arguments are passed down to [numpy.save](https://numpy.org/doc/stable/reference/generated/numpy.save.html)
@@ -155,7 +146,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
         data : ndarray
             numpy data
         all other arguments are passed down to [numpy.savez_compressed](https://numpy.org/doc/stable/reference/generated/numpy.savez_compressed.html)
@@ -177,7 +168,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative to `source_dir`.
         all other arguments are passed down to [numpy.loadtxt](https://numpy.org/doc/stable/reference/generated/numpy.loadtxt.html)
 
         Returns
@@ -186,7 +177,7 @@ class ProjectFileTransfer:
 
         """
         from numpy import loadtxt as np_loadtxt
-        full_path = self.get_file(filename)
+        full_path = self.load_file(filename)
         return np_loadtxt(str(full_path), *args, **kw)
 
     def numpy_savetxt(self, filename, data, *args, **kw):
@@ -198,7 +189,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
         data : ndarray
             numpy data
         all other arguments are passed down to [numpy.savetxt](https://numpy.org/doc/stable/reference/generated/numpy.savetxt.html)
@@ -220,7 +211,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative to `source_dir`.
         all other arguments are passed down to [pandas.read_csv](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#io-read-csv-table)
 
         Returns
@@ -229,7 +220,7 @@ class ProjectFileTransfer:
 
         """
         from pandas import read_csv as pd_read_csv
-        full_path = self.get_file(filename)
+        full_path = self.load_file(filename)
         return pd_read_csv(str(full_path), *args, **kw)
 
     def pandas_to_csv(self, filename, data, *args, **kw):
@@ -241,7 +232,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
         data : pandas.DataFrame
         all other arguments are passed down to [pandas.DataFrame.to_csv](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#io-store-in-csv)
 
@@ -261,7 +252,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative to `source_dir`.
         all other arguments are passed down to [pandas.read_json](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#io-json-reader)
 
         Returns
@@ -270,7 +261,7 @@ class ProjectFileTransfer:
 
         """
         from pandas import read_json as pd_read_json
-        full_path = self.get_file(filename)
+        full_path = self.load_file(filename)
         return pd_read_json(str(full_path), *args, **kw)
 
     def pandas_to_json(self, filename, data, *args, **kw):
@@ -282,7 +273,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
         data : pandas.DataFrame
         all other arguments are passed down to [pandas.DataFrame.to_json](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#io-json-writer)
 
@@ -302,7 +293,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative to `source_dir`.
         all other arguments are passed down to [pandas.read_excel](https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html)
 
         Returns
@@ -311,7 +302,7 @@ class ProjectFileTransfer:
 
         """
         from pandas import read_excel as pd_read_excel
-        full_path = self.get_file(filename)
+        full_path = self.load_file(filename)
         return pd_read_excel(str(full_path), *args, **kw)
 
     def pandas_to_excel(self, filename, data, *args, **kw):
@@ -323,7 +314,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
         data : pandas.DataFrame
         all other arguments are passed down to [pandas.DataFrame.to_excel](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel)
 
@@ -343,7 +334,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The file that should be loaded. The path should be an absolute path to a readable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The file that should be loaded. The path should be an absolute path to a readable file, or relative to `source_dir`.
         all other arguments are passed down to [pandas.read_hdf](https://pandas.pydata.org/docs/reference/api/pandas.read_hdf.html)
 
         Returns
@@ -352,7 +343,7 @@ class ProjectFileTransfer:
 
         """
         from pandas import read_hdf as pd_read_hdf
-        full_path = self.get_file(filename)
+        full_path = self.load_file(filename)
         return pd_read_hdf(str(full_path), *args, **kw)
 
     def pandas_to_hdf(self, filename, data, *args, **kw):
@@ -364,7 +355,7 @@ class ProjectFileTransfer:
         Parameters
         ----------
         filename : str
-            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The filename where the data should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
         data : pandas.DataFrame
        all other arguments are passed down to [pandas.DataFrame.to_hdf](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_hdf.html#pandas.DataFrame.to_hdf)
 
@@ -390,7 +381,7 @@ class ProjectFileTransfer:
         save_function : callable
             the function that saves the data to disk
         filename : str
-            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative either to target_project_space_dir or to source_fileserver_dir.
+            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
         data : ndarray
             image data
         all other arguments are passed down to save_function
@@ -403,27 +394,21 @@ class ProjectFileTransfer:
         full_path = Path(filename)
         if os.access(full_path.parent, os.W_OK) and str(full_path.parent) != '.':
             return save_function(str(full_path), *args, **kw)
-        if str(filename).startswith(str(self.target_project_space_dir)):
-            target_path = str(self.target_project_space_dir / filename)
-        elif str(filename).startswith(str(self.source_fileserver_dir)):
-            target_path = str(self.source_fileserver_dir / filename)
+        if str(filename).startswith(str(self.source_dir)):
+            target_path = str(self.source_dir / filename)
         else:
-            if self.save_target == 'project':
-                target_path = str(self.target_project_space_dir / filename)
-            else:
-                target_path = str(self.source_fileserver_dir / filename)
+            target_path = str(self.source_dir / filename)
         return save_to_project(save_function, str(target_path), *args, cache_workspace=self.cache,
                                path_to_datamover=self.datamover.path_to_exe, path_to_workspace_tools=self.workspace_exe_path, quiet=self.quiet, **kw)
 
-    def get_file(self, filename: str, timeout_in_s: float = -1,
-                 wait_for_finish: bool = True) -> Path:
+    def load_file(self, filename: str, timeout_in_s: float = -1,
+                  wait_for_finish: bool = True) -> Path:
         '''Ensures that the computing node has access to a file. If necessary, the file is retrieved from a mounted fileserver share.
 
         Before transferring the file, local directories are checked in the following order:
         1. filename (in case the user gave a path to an accessible file)
         2. (temporary directory)/file.name,
-        3. /target_project_space_dir/filename (in case the user gave a path relative to the target project space).
-        4. Only if no file of the same name is found, the file is retrieved from the fileserver.
+        3. Only if no file of the same name is found, the file is retrieved from the fileserver.
 
         Parameters
         ----------
@@ -452,16 +437,10 @@ class ProjectFileTransfer:
             full_path = self.temporary_directory_path / full_path.name
             if full_path.is_file():
                 return full_path
-            else:
-                # then check if the user meant a path relative to the target
-                # project
-                full_path = self.target_project_space_dir / filename
-                if full_path.is_file():
-                    return full_path
         # if we can't find the file locally, retrieve it from the fileserver
         # (into tmp)
         filename = filename.replace("\\", "/")
-        source_file = self.source_fileserver_dir / filename
+        source_file = self.source_dir / filename
         # copy the file into tmp
         target_file = self.temporary_directory_path / source_file.name
 
@@ -484,49 +463,13 @@ class ProjectFileTransfer:
         List of strings
         """
         return [str(f)
-                for f in sorted(self.target_project_space_dir.glob('**/*'))]
-
-    def remove_file(self, filename, wait_for_finish: bool = False):
-        """
-        Removes a given file from the project space.
-
-        Parameters
-        ----------
-        filename : str
-            The file that should be removed from the given project space
-        timeout_in_s : float, optional (default: 20s)
-            Time we wait until the file might be deleted.
-            Will not do anything as long as wait_for_finish = False
-        wait_for_finish : bool, optional (default: False)
-            Wait for file remove operation to be finished.
-
-        Returns
-        -------
-        pathlib.Path object : if we didn't wait
-        int : exit code of rm operation if we waited
-
-        """
-        if not str(filename).startswith(str(self.target_project_space_dir)):
-            filename = self.target_project_space_dir / filename
-        else:
-            filename = Path(filename)
-
-        process = self.datamover.dtrm('-r', str(filename))
-
-        if not wait_for_finish:
-            return process
-
-        exit_code = waitfor(process)
-        if exit_code > 0:
-            raise IOError('Could not remove file: {}'.format(str(filename)))
-
-        return exit_code
+                for f in sorted(Path(self.cache.name).glob('**/*'))]
 
     def sync_from_fileserver(self, delete: bool = False, overwrite_newer: bool = False,
                              im_sure: bool = False, dry_run: bool = False, background: bool = True):
         '''Synchronize a whole directory tree from the fileserver to the project space (using rsync). By default, does not delete files, but overwrites existing files if they are older.
 
-        Beware that this recursively copies _all_ the data. So if you have an error in source mount or target project space, this might create a mess.
+        Beware that this recursively copies _all_ the data. So if you have an error in source mount, this might create a mess.
         If you are unsure, first call the method with dry_run=True. That way, no data will be transferred, and you can check the output.
         This behavior is enforced for dangerous operations that might cause data loss.
         Dangerous operations are:
@@ -562,7 +505,7 @@ class ProjectFileTransfer:
                            im_sure: bool = False, dry_run: bool = False, background: bool = True):
         '''Synchronize a whole directory tree from the project space on the cluster to the fileserver (using rsync). By default, does not delete files, but overwrites existing files if they are older.
 
-        Beware that this recursively copies _all_ the data. So if you have an error in source mount or target project space, this might create a mess.
+        Beware that this recursively copies _all_ the data. So if you have an error in source_dir, this might create a mess.
         If you are unsure, first call the method with dry_run=True. That way, no data will be transferred, and you can check the output.
         This behavior is enforced for dangerous operations that might cause data loss.
         Dangerous operations are:
@@ -602,7 +545,7 @@ class ProjectFileTransfer:
         -------
         List of strings
         """
-        process = self.datamover.dtls('-R1', str(self.source_fileserver_dir))
+        process = self.datamover.dtls('-R1', str(self.source_dir))
         exit_code = waitfor(process, timeout_in_s=timeout_in_s, discard_output=False, quiet=self.quiet)
         out, err = process.communicate()
         return out.decode('utf-8').split("\n")
@@ -613,7 +556,7 @@ class ProjectFileTransfer:
 
         By default, we sync from the fileserver to the project space (direction='from fileserver'). If you want to synchronize from the project space to the fileserver, use direction='to fileserver'.
 
-        Beware that this recursively copies _all_ the data. So if you have an error in source mount or target project space, this might create a mess.
+        Beware that this recursively copies _all_ the data. So if you have an error in source_dir, this might create a mess.
         If you are unsure, first call the method with dry_run=True. That way, no data will be transferred, and you can check the output.
         This behavior is enforced for dangerous operations that might cause data loss.
         Dangerous operations are:
@@ -650,15 +593,14 @@ class ProjectFileTransfer:
         if delete:
             options.append('--delete')
         if direction == 'from_fileserver' or direction == 'from fileserver':
-            options.append(str(self.source_fileserver_dir) + '/')
-            options.append(str(self.target_project_space_dir))
+            options.append(str(self.source_dir) + '/')
+            options.append(self.cache.name)
         else:
-            options.append(str(self.target_project_space_dir) + '/')
-            options.append(str(self.source_fileserver_dir))
+            options.append(self.cache.name + '/')
+            options.append(str(self.source_dir))
         confirmation_required = delete or overwrite_newer
-        if self.target_project_space_dir.parent == list(self.target_project_space_dir.parents)[
-                -2] and self.source_fileserver_dir.parent == list(self.source_fileserver_dir.parents)[-2]:
-            # syncing the entire fileserver directly into target_project_space_dir
+        if self.source_dir.parent == list(self.source_dir.parents)[-2]:
+            # syncing the entire fileserver directly into source_dir
             # requires confirmation because it might affect data of other users of the
             # same project space
             confirmation_required = True
@@ -681,34 +623,17 @@ class ProjectFileTransfer:
     def _initialize_tmp(self):
         '''Delete all temporary data and create a new, empty temp directory.
         '''
-        self.cache = CacheWorkspace(path_to_exe=self.workspace_exe_path)
+        self.cache = CacheWorkspace(path_to_exe=self.workspace_exe_path, expire_in_days=10)
+        self.cache_path = Path(self.cache.name)
         self.temporary_directory = tempfile.TemporaryDirectory(prefix=self.cache.name + '/')
         self.temporary_directory_path = Path(self.temporary_directory.name)
         assert self.temporary_directory_path.exists(), 'Failed to create temporary directory. Please make sure that the cache workspace was initialized correctly by executing "ws_list" on a command line (e.g. execute "!ws_list" in a jupyter notebook). Then delete and re-create the ProjectFileTransfer object.'
-
-    def _ensure_project_dir_exists(self):
-        if not self.target_project_space_dir.exists():
-            i = 0
-            while self.target_project_space_dir.parents[i].exists() == False:
-                i += 1
-            cached_target_dir = self.temporary_directory_path.joinpath(*self.target_project_space_dir.parts[-(i + 1):])
-            cached_target_dir.mkdir(parents=True, exist_ok=True)
-            process = self.datamover.dtrsync('-r', self.temporary_directory.name + '/',
-                                             str(self.target_project_space_dir.parents[i]) + '/')
-            exit_code = waitfor(process)
-            if not self.target_project_space_dir.exists():
-                raise IOError('Could not create target project space dir: {}'.format(
-                    str(self.target_project_space_dir)))
-            if i < 1:
-                shutil.rmtree(cached_target_dir)
-            else:
-                shutil.rmtree(cached_target_dir.parents[i - 1])
 
     def __del__(self):
         '''Clean up the cache when the object is deleted
         '''
         try:
             self.temporary_directory.cleanup()
-            self.cache.cleanup()
+            # self.cache.cleanup()
         except FileNotFoundError:
             pass

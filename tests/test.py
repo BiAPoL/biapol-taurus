@@ -6,12 +6,11 @@ import numpy as np
 import pandas as pd
 from skimage.io import imsave, imread
 
-from taurus_datamover._mock import MockCluster
 
 my_path = Path(__file__)
 try:
     import biapol_taurus
-except ModuleNotFoundError:
+except ModuleNotFoundError:  # workaround so that the test runs locally by starting test.py directly
     import sys
     sys.path.append(str(my_path.parent.parent))
     import biapol_taurus
@@ -19,7 +18,13 @@ except ModuleNotFoundError:
 
 class TestProjectFileTransfer(unittest.TestCase):
     def setUp(self) -> None:
-        self.mock_cluster = MockCluster(commands=['dtls', 'dtcp', 'dtrm', 'dtmv', 'dtrsync'])
+        if Path('/sw/taurus/tools/slurmtools/default/bin/dtls').exists():
+            # we are on a real cluster, use the real thing
+            from taurus_datamover._mock import RealCluster
+            self.mock_cluster = RealCluster()
+        else:
+            from taurus_datamover._mock import MockCluster
+            self.mock_cluster = MockCluster(commands=['dtls', 'dtcp', 'dtrm', 'dtmv', 'dtrsync'])
         self.project = self.mock_cluster.temp_path / 'project'
         self.project.mkdir()
         self.fileserver = self.mock_cluster.temp_path / 'fileserver'
@@ -27,15 +32,15 @@ class TestProjectFileTransfer(unittest.TestCase):
         self.fileserver_userdir = self.fileserver / 'userdir'
         self.fileserver_userdir.mkdir()
         self.project_userdir = self.project / 'userdir'
+        self.project_userdir.mkdir()
         self.testdata = np.random.randn(64, 64)
         np.save(self.fileserver_userdir / 'testdata.npy', self.testdata, allow_pickle=False)
         imsave(self.fileserver_userdir / 'testimage.tif', self.testdata)
         self.mock_cluster.__enter__()
         self.pft = biapol_taurus.ProjectFileTransfer(
-            source_fileserver_dir=str(self.fileserver_userdir),
-            target_project_space_dir=str(self.project_userdir),
+            source_dir=str(self.fileserver_userdir),
             datamover_path=self.mock_cluster.bin_path,
-            workspace_exe_path=self.mock_cluster.bin_path,
+            workspace_exe_path=self.mock_cluster.workspace_exe_path,
             quiet=True)
         self.pandas_dataframe = pd.DataFrame.from_dict(
             {'test column': {'test row': 'a', 'test row2': 'b'}, 'test col2': {'test row': 1, 'test row2': 2}})
@@ -46,24 +51,15 @@ class TestProjectFileTransfer(unittest.TestCase):
         self.mock_cluster.tempdir.cleanup()
         return super().tearDown()
 
-    def test_ensure_project_dir_exists(self):
-        self.project_userdir.rmdir()
-        pft = biapol_taurus.ProjectFileTransfer(
-            source_fileserver_dir=str(self.fileserver_userdir),
-            target_project_space_dir=str(self.project_userdir),
-            datamover_path=self.mock_cluster.bin_path,
-            workspace_exe_path=self.mock_cluster.bin_path)
-        self.assertTrue(self.project_userdir.exists())
-
     def test_sync_from_fileserver(self):
         self.pft.sync_from_fileserver()
-        self.assertTrue((self.project_userdir / 'testdata.npy').exists())
-        self.assertTrue((self.project_userdir / 'testimage.tif').exists())
-        numpy_data = np.load(self.project_userdir / 'testdata.npy')
+        self.assertTrue((self.pft.cache_path / 'testdata.npy').exists())
+        self.assertTrue((self.pft.cache_path / 'testimage.tif').exists())
+        numpy_data = np.load(self.pft.cache_path / 'testdata.npy')
         self.assertTrue(np.array_equal(self.testdata, numpy_data))
 
     def test_sync_to_fileserver(self):
-        np.save(self.project_userdir / 'testdata_new.npy', self.testdata, allow_pickle=False)
+        np.save(self.pft.cache_path / 'testdata_new.npy', self.testdata, allow_pickle=False)
         self.pft.sync_to_fileserver()
         self.assertTrue((self.fileserver_userdir / 'testdata_new.npy').exists())
         self.assertTrue((self.fileserver_userdir / 'testdata.npy').exists())
@@ -87,7 +83,7 @@ class TestProjectFileTransfer(unittest.TestCase):
     def test_sync_overwrite_older(self):
         new_testdata = np.random.randn(64, 64)
         sleep(1)  # ensure that the source testdata file is at least 1s newer than the target file
-        np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
+        np.save(self.pft.cache_path / 'testdata.npy', new_testdata, allow_pickle=False)
         self.pft.sync_to_fileserver()
         self.assertTrue((self.fileserver_userdir / 'testdata.npy').exists())
         self.assertTrue((self.fileserver_userdir / 'testimage.tif').exists())
@@ -97,7 +93,7 @@ class TestProjectFileTransfer(unittest.TestCase):
 
     def test_sync_not_overwrite_newer(self):
         new_testdata = np.random.randn(64, 64)
-        np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
+        np.save(self.pft.cache_path / 'testdata.npy', new_testdata, allow_pickle=False)
         sleep(1)  # ensure that the target testdata file is at least 1s newer than the source file
         np.save(self.fileserver_userdir / 'testdata.npy', self.testdata, allow_pickle=False)
         self.pft.sync_to_fileserver()
@@ -109,7 +105,7 @@ class TestProjectFileTransfer(unittest.TestCase):
 
     def test_sync_not_overwrite_newer_unconfirmed(self):
         new_testdata = np.random.randn(64, 64)
-        np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
+        np.save(self.pft.cache_path / 'testdata.npy', new_testdata, allow_pickle=False)
         self.assertRaises(
             biapol_taurus.ConfirmationRequiredException,
             self.pft.sync_to_fileserver,
@@ -122,7 +118,7 @@ class TestProjectFileTransfer(unittest.TestCase):
 
     def test_sync_overwrite_newer_confirmed(self):
         new_testdata = np.random.randn(64, 64)
-        np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
+        np.save(self.pft.cache_path / 'testdata.npy', new_testdata, allow_pickle=False)
         sleep(1)  # ensure that the target testdata file is at least 1s newer than the source file
         np.save(self.fileserver_userdir / 'testdata.npy', self.testdata, allow_pickle=False)
         self.pft.sync_to_fileserver(overwrite_newer=True, im_sure=True)
@@ -133,7 +129,7 @@ class TestProjectFileTransfer(unittest.TestCase):
         self.assertFalse(np.array_equal(self.testdata, numpy_data))
 
     def test_get_file_fileserver(self):
-        cached_file = self.pft.get_file('testdata.npy')
+        cached_file = self.pft.load_file('testdata.npy')
         self.assertRegex(str(cached_file), r'.*/scratch/cache/.*')
         self.assertTrue(cached_file.exists())
         numpy_data = np.load(cached_file)
@@ -141,19 +137,24 @@ class TestProjectFileTransfer(unittest.TestCase):
 
     def test_get_file_project(self):
         new_testdata = np.random.randn(64, 64)
+        pft = biapol_taurus.ProjectFileTransfer(
+            source_dir=str(self.project_userdir),
+            datamover_path=self.mock_cluster.bin_path,
+            workspace_exe_path=self.mock_cluster.workspace_exe_path,
+            quiet=True)
         np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
-        cached_file = self.pft.get_file('testdata.npy')
-        self.assertRegex(str(cached_file), r'.*/project/.*')
+        cached_file = pft.load_file('testdata.npy')
+        self.assertRegex(str(cached_file), r'.*cache/.*')
         self.assertTrue(cached_file.exists())
         numpy_data = np.load(cached_file)
         self.assertTrue(np.array_equal(new_testdata, numpy_data))
 
     def test_get_file_again(self):
-        cached_file = self.pft.get_file('testdata.npy')
+        cached_file = self.pft.load_file('testdata.npy')
         # now we overwrite the original file to make sure that we get the cached file that still contains the old data
         new_testdata = np.random.randn(64, 64)
         np.save(self.fileserver_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
-        cached_file_again = self.pft.get_file('testdata.npy')
+        cached_file_again = self.pft.load_file('testdata.npy')
         self.assertEqual(cached_file, cached_file_again)
         self.assertTrue(cached_file_again.exists())
         numpy_data = np.load(cached_file)
@@ -165,49 +166,20 @@ class TestProjectFileTransfer(unittest.TestCase):
         local_dir.mkdir()
         local_file = local_dir / 'testdata.npy'
         np.save(local_file, new_testdata, allow_pickle=False)
-        got_file = self.pft.get_file(local_file)
+        got_file = self.pft.load_file(local_file)
         self.assertEqual(local_file, got_file)
         self.assertTrue(got_file.exists())
         numpy_data = np.load(got_file)
         self.assertTrue(np.array_equal(new_testdata, numpy_data))
 
     def test_get_file_missing_file(self):
-        self.assertRaises(IOError, self.pft.get_file, 'testdata_missing.npy')
-
-    def test_remove_file(self):
-        new_testdata = np.random.randn(64, 64)
-        project_file = self.project_userdir / 'testdata.npy'
-        np.save(project_file, new_testdata, allow_pickle=False)
-        self.assertTrue(project_file.exists())
-        self.pft.remove_file('testdata.npy', wait_for_finish=True)
-        self.assertFalse(project_file.exists())
-
-    def test_remove_file_nowait(self):
-        new_testdata = np.random.randn(64, 64)
-        project_file = self.project_userdir / 'testdata.npy'
-        np.save(project_file, new_testdata, allow_pickle=False)
-        self.assertTrue(project_file.exists())
-        process = self.pft.remove_file('testdata.npy', wait_for_finish=False)
-        self.assertTrue(project_file.exists())
-        process.communicate()
-        self.assertFalse(project_file.exists())
-
-    def test_remove_file_full_path(self):
-        new_testdata = np.random.randn(64, 64)
-        project_file = self.project_userdir / 'testdata.npy'
-        np.save(project_file, new_testdata, allow_pickle=False)
-        self.assertTrue(project_file.exists())
-        self.pft.remove_file(project_file, wait_for_finish=True)
-        self.assertFalse(project_file.exists())
-
-    def test_remove_file_missing_file(self):
-        self.assertRaises(IOError, self.pft.remove_file, 'testdata_missing.npy', wait_for_finish=True)
+        self.assertRaises(IOError, self.pft.load_file, 'testdata_missing.npy')
 
     def test_save_file(self):
-        project_file = self.project_userdir / 'saved_data.npy'
+        fileserver_file = self.fileserver_userdir / 'saved_data.npy'
         self.pft.save_file(np.save, 'saved_data.npy', self.testdata, allow_pickle=False)
-        self.assertTrue(project_file.exists())
-        numpy_data = np.load(project_file)
+        self.assertTrue(fileserver_file.exists())
+        numpy_data = np.load(fileserver_file)
         self.assertTrue(np.array_equal(self.testdata, numpy_data))
 
     def test_save_file_fileserver(self):
@@ -219,10 +191,10 @@ class TestProjectFileTransfer(unittest.TestCase):
         self.assertTrue(np.array_equal(self.testdata, numpy_data))
 
     def test_save_file_absolute_path(self):
-        project_file = self.project_userdir / 'saved_data.npy'
-        self.pft.save_file(np.save, str(project_file), self.testdata, allow_pickle=False)
-        self.assertTrue(project_file.exists())
-        numpy_data = np.load(project_file)
+        fileserver_file = self.fileserver_userdir / 'saved_data.npy'
+        self.pft.save_file(np.save, str(fileserver_file), self.testdata, allow_pickle=False)
+        self.assertTrue(fileserver_file.exists())
+        numpy_data = np.load(fileserver_file)
         self.assertTrue(np.array_equal(self.testdata, numpy_data))
 
     def test_csv(self):
