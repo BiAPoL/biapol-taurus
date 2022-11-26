@@ -370,6 +370,32 @@ class ProjectFileTransfer:
 
     csv_save = pandas_to_csv
 
+    def get_file(self, source_path: Path, destination_path: Path) -> Path:
+        '''get a file from the fileserver or project space
+
+        Parameters
+        ----------
+        source_path : Path
+            source path on the fileserver
+        destination_path : Path
+            target path must be writable by computing nodes, e.g. on a scratch space or the user's home directory
+
+        Returns
+        -------
+        Path
+            where the file was saved
+        '''
+        process = self.datamover.dtcp('-r', str(source_path),
+                                      str(destination_path))
+        exit_code = waitfor(process, quiet=self.quiet)
+        if exit_code > 0:
+            raise IOError(
+                'Could not get file from fileserver: {}'.format(
+                    str(source_path)))
+        return destination_path
+
+    put_file = get_file
+
     def _save_file(self, save_function: callable, filename: str, *args, **kw):
         """
         Save data to a file on the project space, fileserver or any other location you have write access from a node.
@@ -445,14 +471,7 @@ class ProjectFileTransfer:
         target_file = self.temporary_directory_path / source_file.name
 
         # start a process, submitting the copy-job
-        process = self.datamover.dtcp('-r', str(source_file),
-                                      str(target_file))
-        exit_code = waitfor(process, quiet=self.quiet)
-        if exit_code > 0:
-            raise IOError(
-                'Could not get file from fileserver: {}'.format(
-                    str(source_file)))
-        return target_file
+        return self.get_file(source_file, target_file)
 
     def list_files(self):
         """
