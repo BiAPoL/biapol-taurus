@@ -396,83 +396,6 @@ class ProjectFileTransfer:
 
     put_file = get_file
 
-    def _save_file(self, save_function: callable, filename: str, *args, **kw):
-        """
-        Save data to a file on the project space, fileserver or any other location you have write access from a node.
-
-        Be aware that, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just the save_function directly.
-
-        Parameters
-        ----------
-        save_function : callable
-            the function that saves the data to disk
-        filename : str
-            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
-        data : ndarray
-            image data
-        all other arguments are passed down to save_function
-
-        Returns
-        -------
-        result of save_function
-
-        """
-        full_path = Path(filename)
-        if os.access(full_path.parent, os.W_OK) and str(full_path.parent) != '.':
-            return save_function(str(full_path), *args, **kw)
-        if str(filename).startswith(str(self.source_dir)):
-            target_path = str(self.source_dir / filename)
-        else:
-            target_path = str(self.source_dir / filename)
-        return save_to_project(save_function, str(target_path), *args, cache_workspace=self.cache,
-                               path_to_datamover=self.datamover.path_to_exe, path_to_workspace_tools=self.workspace_exe_path, quiet=self.quiet, **kw)
-
-    def _load_file(self, filename: str, timeout_in_s: float = -1,
-                   wait_for_finish: bool = True) -> Path:
-        '''Ensures that the computing node has access to a file. If necessary, the file is retrieved from a mounted fileserver share.
-
-        Before transferring the file, local directories are checked in the following order:
-        1. filename (in case the user gave a path to an accessible file)
-        2. (temporary directory)/file.name,
-        3. Only if no file of the same name is found, the file is retrieved from the fileserver.
-
-        Parameters
-        ----------
-        filename: str
-            filename as on the fileserver, if the file is stored on the fileserver under
-            \\fileserver\\mount\folder\\data.txt
-            You need to pass 'folder/data.txt' here.
-        timeout_in_s: float, optional (default: endless)
-            Timeout in seconds. This process will wait a bit and check repeatedly if the
-            file arrived. Waiting will be interrupted when the timeout is reached.
-        wait_for_finish : bool, optional (default: True)
-            If True, will wait until the requested file arrived.
-
-        Returns
-        -------
-        Path
-            The path where the file is accessible to the computing node
-
-        '''
-        # first check if the file as given by the user exists locally
-        full_path = Path(filename)
-        if full_path.is_file():
-            return full_path
-        else:
-            # then check, if the file exists in tmp
-            full_path = self.temporary_directory_path / full_path.name
-            if full_path.is_file():
-                return full_path
-        # if we can't find the file locally, retrieve it from the fileserver
-        # (into tmp)
-        filename = filename.replace("\\", "/")
-        source_file = self.source_dir / filename
-        # copy the file into tmp
-        target_file = self.temporary_directory_path / source_file.name
-
-        # start a process, submitting the copy-job
-        return self.get_file(source_file, target_file)
-
     def list_files(self):
         """
         Get a list of files located in the project space
@@ -555,6 +478,83 @@ class ProjectFileTransfer:
 
         return self._sync(direction='to fileserver', delete=delete,
                           overwrite_newer=overwrite_newer, im_sure=im_sure, dry_run=dry_run)
+
+    def _save_file(self, save_function: callable, filename: str, *args, **kw):
+        """
+        Save data to a file on the project space, fileserver or any other location you have write access from a node.
+
+        Be aware that, unlike the login node, computing nodes don't have write access to the project space. Therefore, you need to use this function to save to the project space rather than just the save_function directly.
+
+        Parameters
+        ----------
+        save_function : callable
+            the function that saves the data to disk
+        filename : str
+            The filename where the image should be saved. The path should be an absolute path to a writable file, or relative to `source_dir`.
+        data : ndarray
+            image data
+        all other arguments are passed down to save_function
+
+        Returns
+        -------
+        result of save_function
+
+        """
+        full_path = Path(filename)
+        if os.access(full_path.parent, os.W_OK) and str(full_path.parent) != '.':
+            return save_function(str(full_path), *args, **kw)
+        if str(filename).startswith(str(self.source_dir)):
+            target_path = str(self.source_dir / filename)
+        else:
+            target_path = str(self.source_dir / filename)
+        return save_to_project(save_function, str(target_path), *args, cache_workspace=self.cache,
+                               path_to_datamover=self.datamover.path_to_exe, path_to_workspace_tools=self.workspace_exe_path, quiet=self.quiet, **kw)
+
+    def _load_file(self, filename: str, timeout_in_s: float = -1,
+                   wait_for_finish: bool = True) -> Path:
+        '''Ensures that the computing node has access to a file. If necessary, the file is retrieved from a mounted fileserver share.
+
+        Before transferring the file, local directories are checked in the following order:
+        1. filename (in case the user gave a path to an accessible file)
+        2. (temporary directory)/file.name,
+        3. Only if no file of the same name is found, the file is retrieved from the fileserver.
+
+        Parameters
+        ----------
+        filename: str
+            filename as on the fileserver, if the file is stored on the fileserver under
+            \\fileserver\\mount\folder\\data.txt
+            You need to pass 'folder/data.txt' here.
+        timeout_in_s: float, optional (default: endless)
+            Timeout in seconds. This process will wait a bit and check repeatedly if the
+            file arrived. Waiting will be interrupted when the timeout is reached.
+        wait_for_finish : bool, optional (default: True)
+            If True, will wait until the requested file arrived.
+
+        Returns
+        -------
+        Path
+            The path where the file is accessible to the computing node
+
+        '''
+        # first check if the file as given by the user exists locally
+        full_path = Path(filename)
+        if full_path.is_file():
+            return full_path
+        else:
+            # then check, if the file exists in tmp
+            full_path = self.temporary_directory_path / full_path.name
+            if full_path.is_file():
+                return full_path
+        # if we can't find the file locally, retrieve it from the fileserver
+        # (into tmp)
+        filename = filename.replace("\\", "/")
+        source_file = self.source_dir / filename
+        # copy the file into tmp
+        target_file = self.temporary_directory_path / source_file.name
+
+        # start a process, submitting the copy-job
+        return self.get_file(source_file, target_file)
 
     def _list_fileserver_files(self, timeout_in_s: float = 30):
         """
