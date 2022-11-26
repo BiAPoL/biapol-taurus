@@ -129,7 +129,7 @@ class TestProjectFileTransfer(unittest.TestCase):
         self.assertFalse(np.array_equal(self.testdata, numpy_data))
 
     def test_get_file_fileserver(self):
-        cached_file = self.pft.load_file('testdata.npy')
+        cached_file = self.pft._load_file('testdata.npy')
         self.assertRegex(str(cached_file), r'.*/scratch/cache/.*')
         self.assertTrue(cached_file.exists())
         numpy_data = np.load(cached_file)
@@ -143,18 +143,18 @@ class TestProjectFileTransfer(unittest.TestCase):
             workspace_exe_path=self.mock_cluster.workspace_exe_path,
             quiet=True)
         np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
-        cached_file = pft.load_file('testdata.npy')
+        cached_file = pft._load_file('testdata.npy')
         self.assertRegex(str(cached_file), r'.*cache/.*')
         self.assertTrue(cached_file.exists())
         numpy_data = np.load(cached_file)
         self.assertTrue(np.array_equal(new_testdata, numpy_data))
 
     def test_get_file_again(self):
-        cached_file = self.pft.load_file('testdata.npy')
+        cached_file = self.pft._load_file('testdata.npy')
         # now we overwrite the original file to make sure that we get the cached file that still contains the old data
         new_testdata = np.random.randn(64, 64)
         np.save(self.fileserver_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
-        cached_file_again = self.pft.load_file('testdata.npy')
+        cached_file_again = self.pft._load_file('testdata.npy')
         self.assertEqual(cached_file, cached_file_again)
         self.assertTrue(cached_file_again.exists())
         numpy_data = np.load(cached_file)
@@ -166,18 +166,18 @@ class TestProjectFileTransfer(unittest.TestCase):
         local_dir.mkdir()
         local_file = local_dir / 'testdata.npy'
         np.save(local_file, new_testdata, allow_pickle=False)
-        got_file = self.pft.load_file(local_file)
+        got_file = self.pft._load_file(local_file)
         self.assertEqual(local_file, got_file)
         self.assertTrue(got_file.exists())
         numpy_data = np.load(got_file)
         self.assertTrue(np.array_equal(new_testdata, numpy_data))
 
     def test_get_file_missing_file(self):
-        self.assertRaises(IOError, self.pft.load_file, 'testdata_missing.npy')
+        self.assertRaises(IOError, self.pft._load_file, 'testdata_missing.npy')
 
     def test_save_file(self):
         fileserver_file = self.fileserver_userdir / 'saved_data.npy'
-        self.pft.save_file(np.save, 'saved_data.npy', self.testdata, allow_pickle=False)
+        self.pft._save_file(np.save, 'saved_data.npy', self.testdata, allow_pickle=False)
         self.assertTrue(fileserver_file.exists())
         numpy_data = np.load(fileserver_file)
         self.assertTrue(np.array_equal(self.testdata, numpy_data))
@@ -185,14 +185,14 @@ class TestProjectFileTransfer(unittest.TestCase):
     def test_save_file_fileserver(self):
         fileserver_file = self.fileserver_userdir / 'saved_data.npy'
         self.pft.save_target = 'fileserver'
-        self.pft.save_file(np.save, 'saved_data.npy', self.testdata, allow_pickle=False)
+        self.pft._save_file(np.save, 'saved_data.npy', self.testdata, allow_pickle=False)
         self.assertTrue(fileserver_file.exists())
         numpy_data = np.load(fileserver_file)
         self.assertTrue(np.array_equal(self.testdata, numpy_data))
 
     def test_save_file_absolute_path(self):
         fileserver_file = self.fileserver_userdir / 'saved_data.npy'
-        self.pft.save_file(np.save, str(fileserver_file), self.testdata, allow_pickle=False)
+        self.pft._save_file(np.save, str(fileserver_file), self.testdata, allow_pickle=False)
         self.assertTrue(fileserver_file.exists())
         numpy_data = np.load(fileserver_file)
         self.assertTrue(np.array_equal(self.testdata, numpy_data))

@@ -69,7 +69,7 @@ class ProjectFileTransfer:
 
         """
         from skimage.io import imread
-        full_path = self.load_file(filename)
+        full_path = self._load_file(filename)
         return imread(str(full_path), *args, **kw)
 
     def imsave(self, filename, data, *args, **kw):
@@ -92,7 +92,7 @@ class ProjectFileTransfer:
 
         """
         from skimage.io import imsave
-        return self.save_file(imsave, filename, data, *args, **kw)
+        return self._save_file(imsave, filename, data, *args, **kw)
 
     def numpy_load(self, filename, *args, **kw):
         """
@@ -112,7 +112,7 @@ class ProjectFileTransfer:
 
         """
         from numpy import load as np_load
-        full_path = self.load_file(filename)
+        full_path = self._load_file(filename)
         return np_load(str(full_path), *args, **kw)
 
     def numpy_save(self, filename, data, *args, **kw):
@@ -135,7 +135,7 @@ class ProjectFileTransfer:
 
         """
         from numpy import save as np_save
-        return self.save_file(np_save, filename, data, *args, **kw)
+        return self._save_file(np_save, filename, data, *args, **kw)
 
     def numpy_savez_compressed(self, filename, data, *args, **kw):
         """
@@ -157,7 +157,7 @@ class ProjectFileTransfer:
 
         """
         from numpy import savez_compressed as np_savez_compressed
-        return self.save_file(np_savez_compressed, filename, data, *args, **kw)
+        return self._save_file(np_savez_compressed, filename, data, *args, **kw)
 
     def numpy_loadtxt(self, filename, *args, **kw):
         """
@@ -177,7 +177,7 @@ class ProjectFileTransfer:
 
         """
         from numpy import loadtxt as np_loadtxt
-        full_path = self.load_file(filename)
+        full_path = self._load_file(filename)
         return np_loadtxt(str(full_path), *args, **kw)
 
     def numpy_savetxt(self, filename, data, *args, **kw):
@@ -200,7 +200,7 @@ class ProjectFileTransfer:
 
         """
         from numpy import savetxt as np_savetxt
-        return self.save_file(np_savetxt, filename, data, *args, **kw)
+        return self._save_file(np_savetxt, filename, data, *args, **kw)
 
     def pandas_read_csv(self, filename, *args, **kw):
         """
@@ -220,7 +220,7 @@ class ProjectFileTransfer:
 
         """
         from pandas import read_csv as pd_read_csv
-        full_path = self.load_file(filename)
+        full_path = self._load_file(filename)
         return pd_read_csv(str(full_path), *args, **kw)
 
     def pandas_to_csv(self, filename, data, *args, **kw):
@@ -241,7 +241,7 @@ class ProjectFileTransfer:
         result of pandas.DataFrame.to_csv
 
         """
-        return self.save_file(data.to_csv, filename, *args, **kw)
+        return self._save_file(data.to_csv, filename, *args, **kw)
 
     def pandas_read_json(self, filename, *args, **kw):
         """
@@ -261,7 +261,7 @@ class ProjectFileTransfer:
 
         """
         from pandas import read_json as pd_read_json
-        full_path = self.load_file(filename)
+        full_path = self._load_file(filename)
         return pd_read_json(str(full_path), *args, **kw)
 
     def pandas_to_json(self, filename, data, *args, **kw):
@@ -282,7 +282,7 @@ class ProjectFileTransfer:
         result of pandas.DataFrame.to_json
 
         """
-        return self.save_file(data.to_json, filename, *args, **kw)
+        return self._save_file(data.to_json, filename, *args, **kw)
 
     def pandas_read_excel(self, filename, *args, **kw):
         """
@@ -302,7 +302,7 @@ class ProjectFileTransfer:
 
         """
         from pandas import read_excel as pd_read_excel
-        full_path = self.load_file(filename)
+        full_path = self._load_file(filename)
         return pd_read_excel(str(full_path), *args, **kw)
 
     def pandas_to_excel(self, filename, data, *args, **kw):
@@ -323,7 +323,7 @@ class ProjectFileTransfer:
         result of pandas.DataFrame.to_excel
 
         """
-        return self.save_file(data.to_excel, filename, *args, **kw)
+        return self._save_file(data.to_excel, filename, *args, **kw)
 
     def pandas_read_hdf(self, filename, *args, **kw):
         """
@@ -343,7 +343,7 @@ class ProjectFileTransfer:
 
         """
         from pandas import read_hdf as pd_read_hdf
-        full_path = self.load_file(filename)
+        full_path = self._load_file(filename)
         return pd_read_hdf(str(full_path), *args, **kw)
 
     def pandas_to_hdf(self, filename, data, *args, **kw):
@@ -364,13 +364,13 @@ class ProjectFileTransfer:
         result of pandas.DataFrame.to_json
 
         """
-        return self.save_file(data.to_hdf, filename, 'data', *args, **kw)
+        return self._save_file(data.to_hdf, filename, 'data', *args, **kw)
 
     csv_load = pandas_read_csv
 
     csv_save = pandas_to_csv
 
-    def save_file(self, save_function: callable, filename: str, *args, **kw):
+    def _save_file(self, save_function: callable, filename: str, *args, **kw):
         """
         Save data to a file on the project space, fileserver or any other location you have write access from a node.
 
@@ -401,8 +401,8 @@ class ProjectFileTransfer:
         return save_to_project(save_function, str(target_path), *args, cache_workspace=self.cache,
                                path_to_datamover=self.datamover.path_to_exe, path_to_workspace_tools=self.workspace_exe_path, quiet=self.quiet, **kw)
 
-    def load_file(self, filename: str, timeout_in_s: float = -1,
-                  wait_for_finish: bool = True) -> Path:
+    def _load_file(self, filename: str, timeout_in_s: float = -1,
+                   wait_for_finish: bool = True) -> Path:
         '''Ensures that the computing node has access to a file. If necessary, the file is retrieved from a mounted fileserver share.
 
         Before transferring the file, local directories are checked in the following order:
