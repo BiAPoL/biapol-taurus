@@ -1,4 +1,3 @@
-from ctypes.wintypes import tagRECT
 from time import sleep
 import unittest
 from pathlib import Path

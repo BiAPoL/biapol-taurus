@@ -2,7 +2,6 @@ import os
 import warnings
 import tempfile
 from pathlib import Path
-import shutil
 from taurus_datamover import Datamover, CacheWorkspace, waitfor, save_to_project
 
 
