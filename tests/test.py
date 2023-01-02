@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from skimage.io import imsave, imread
+from taurus_datamover._mock import get_test_cluster
 
 
 my_path = Path(__file__)
@@ -17,13 +18,7 @@ except ModuleNotFoundError:  # workaround so that the test runs locally by start
 
 class TestProjectFileTransfer(unittest.TestCase):
     def setUp(self) -> None:
-        if Path('/sw/taurus/tools/slurmtools/default/bin/dtls').exists():
-            # we are on a real cluster, use the real thing
-            from taurus_datamover._mock import RealCluster
-            self.mock_cluster = RealCluster()
-        else:
-            from taurus_datamover._mock import MockCluster
-            self.mock_cluster = MockCluster(commands=['dtls', 'dtcp', 'dtrm', 'dtmv', 'dtrsync'])
+        self.mock_cluster = get_test_cluster()
         self.project = self.mock_cluster.temp_path / 'project'
         self.project.mkdir()
         self.fileserver = self.mock_cluster.temp_path / 'fileserver'
