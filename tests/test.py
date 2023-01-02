@@ -240,7 +240,7 @@ class TestProjectFileTransfer(unittest.TestCase):
             assert_frame_equal(df, self.pandas_dataframe)
 
     def test_pandas_excel(self):
-        ext = 'xls'
+        ext = 'xlsx'
         filename = 'saved.' + ext
         with self.subTest('to ' + ext):
             test_file = self.fileserver_userdir / filename

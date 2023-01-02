@@ -19,7 +19,7 @@ setuptools.setup(
     extras_require={
         'image': ['scikit-image'],
         'numpy': ['numpy'],
-        'pandas': ['pandas', 'xlwt', 'xlrd', 'pytables'],
+        'pandas': ['pandas', 'openpyxl', 'pytables'],
     },
     classifiers=[
         "Programming Language :: Python :: 3",
