@@ -42,6 +42,7 @@ class TestProjectFileTransfer(unittest.TestCase):
         return super().setUp()
 
     def tearDown(self) -> None:
+        self.pft.cache.cleanup()
         self.mock_cluster.tempdir.cleanup()
         return super().tearDown()
 
