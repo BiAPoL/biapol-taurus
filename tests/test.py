@@ -156,6 +156,17 @@ class TestProjectFileTransfer(unittest.TestCase):
         numpy_data = np.load(cached_file)
         self.assertTrue(np.array_equal(new_testdata, numpy_data))
 
+    def test_get_synced_file(self):
+        self.pft.sync_from_fileserver()
+        # now we overwrite the original file to make sure that we get the cached file that still contains the old data
+        new_testdata = np.random.randn(64, 64)
+        np.save(self.fileserver_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
+        cached_file_again = self.pft._load_file('testdata.npy')
+        self.assertTrue(cached_file_again.exists())
+        self.assertRegex(str(cached_file_again), r'.*cache/testdata.npy')
+        numpy_data = np.load(cached_file_again)
+        self.assertTrue(np.array_equal(self.testdata, numpy_data))
+
     def test_get_file_again(self):
         cached_file = self.pft._load_file('testdata.npy')
         # now we overwrite the original file to make sure that we get the cached file that still contains the old data
