@@ -25,7 +25,8 @@ class ProjectFileTransfer:
     See also
     --------
     .. [0] https://doc.zih.tu-dresden.de/data_transfer/datamover/
-    .. [1] https://gitlab.mn.tu-dresden.de/bia-pol/taurus-datamover
+    .. [1] https://doc.zih.tu-dresden.de/data_lifecycle/workspaces/
+    .. [2] https://gitlab.mn.tu-dresden.de/bia-pol/taurus-datamover
     """
 
     def __init__(self, source_dir: str,
@@ -40,6 +41,8 @@ class ProjectFileTransfer:
             Fileserver mount or project space on the export node, e.g. /grp/g_my_group/userdir/
         datamover_path: str, optional
             the path where the datamover tools reside, by default /sw/taurus/tools/slurmtools/default/bin/
+        workspace_exe_path: str, optional
+            the path where the workspace tools (ws_allocate etc.) reside, by default /usr/bin/
         """
         self.source_dir = Path(source_dir)
         self.datamover = Datamover(path_to_exe=datamover_path)
