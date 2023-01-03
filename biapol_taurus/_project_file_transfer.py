@@ -546,10 +546,15 @@ class ProjectFileTransfer:
         if full_path.is_file():
             return full_path
         else:
-            # then check, if the file exists in tmp
-            full_path = self.temporary_directory_path / full_path.name
+            # then check, if the file exists in cache
+            full_path = self.cache_path / full_path.name
             if full_path.is_file():
                 return full_path
+            else:
+                # then check, if the file exists in tmp
+                full_path = self.temporary_directory_path / full_path.name
+                if full_path.is_file():
+                    return full_path
         # if we can't find the file locally, retrieve it from the fileserver
         # (into tmp)
         filename = filename.replace("\\", "/")
