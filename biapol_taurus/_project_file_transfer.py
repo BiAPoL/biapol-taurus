@@ -547,7 +547,7 @@ class ProjectFileTransfer:
             return full_path
         else:
             # then check, if the file exists in cache
-            full_path = self.cache_path / full_path.name
+            full_path = self.cache_path / filename
             if full_path.is_file():
                 return full_path
             else:
