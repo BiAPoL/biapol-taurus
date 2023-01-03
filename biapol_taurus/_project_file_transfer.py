@@ -605,6 +605,10 @@ class ProjectFileTransfer:
             options.append(str(self.source_dir) + '/')
             options.append(self.cache.name)
         else:
+            # do not sync the temporary directory
+            options.append('--exclude')
+            options.append(self.temporary_directory_path.name)
+
             options.append(self.cache.name + '/')
             options.append(str(self.source_dir))
         confirmation_required = delete or overwrite_newer
