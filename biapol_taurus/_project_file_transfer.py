@@ -51,6 +51,7 @@ class ProjectFileTransfer:
         self.cache = None
         self.cache_path = None
         self.temporary_directory = None
+        self.temporary_directory_path = None
         self._initialize_tmp()
 
     def imread(self, filename, *args, **kw):
