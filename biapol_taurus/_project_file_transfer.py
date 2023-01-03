@@ -428,8 +428,6 @@ class ProjectFileTransfer:
             Confirm that you are sure and skip the dry-run for dangerous operations, by default False
         dry_run : bool, optional
             Enforce a dry-run (add rsunc -n flag), by default False
-        background : bool, optional
-            Run in the background and do not wait until the sync is complete, by default True
 
         Returns
         -------
@@ -464,8 +462,6 @@ class ProjectFileTransfer:
             Confirm that you are sure and skip the dry-run for dangerous operations, by default False
         dry_run : bool, optional
             Enforce a dry-run (add rsunc -n flag), by default False
-        background : bool, optional
-            Run in the background and do not wait until the sync is complete, by default True
 
         Returns
         -------
@@ -569,7 +565,7 @@ class ProjectFileTransfer:
         return out.decode('utf-8').split("\n")
 
     def _sync(self, direction: str = 'from fileserver', delete: bool = False,
-              overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False, background: bool = True):
+              overwrite_newer: bool = False, im_sure: bool = False, dry_run: bool = False):
         '''Synchronize a whole directory tree with the fileserver (using rsync). By default, Does not delete files, but overwrites existing files if they are older.
 
         By default, we sync from the fileserver to the project space (direction='from fileserver'). If you want to synchronize from the project space to the fileserver, use direction='to fileserver'.
@@ -594,15 +590,6 @@ class ProjectFileTransfer:
             Confirm that you are sure and skip the dry-run for dangerous operations, by default False
         dry_run : bool, optional
             Enforce a dry-run (add rsunc -n flag), by default False
-        background : bool, optional
-            Run in the background and do not wait until the sync is complete, by default True
-
-        Returns
-        -------
-        subprocess.CompletedProcess object (if bacground=True (default))
-            the CompletedProcess object created by subprocess.Popen. This can be used to retrieve the command output with the communicate() method: https://docs.python.org/3/library/subprocess.html
-        tuple of strings (if background=False)
-            the first element of the tuple is the standard output (stdout) of the process, the second element is the error (stderr).
         '''
         if overwrite_newer:
             options = ['-av']
@@ -636,7 +623,11 @@ class ProjectFileTransfer:
                 'If you are sure you know what you are doing, call this method again with te keyword argument "im_sure=True".\nBut before you do that, please carefully check the output of the dry-run and make sure that is what you intended: {}'.format(out))
         process = self.datamover.dtrsync(*options)
         waitfor(process, discard_output=False, quiet=self.quiet)
-        return process.communicate()
+        out, err = process.communicate()
+        if not err.endswith(b'disregarding --pty option\n'):
+            # only print errors if they are more than the default slurm messages
+            print(err.decode('utf-8'))
+        print(out.decode('utf-8'))
 
     def _initialize_tmp(self):
         '''Delete all temporary data and create a new, empty temp directory.
