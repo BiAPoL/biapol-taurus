@@ -478,6 +478,11 @@ class ProjectFileTransfer:
         return self._sync(direction='to fileserver', delete=delete,
                           overwrite_newer=overwrite_newer, im_sure=im_sure, dry_run=dry_run)
 
+    def cleanup(self):
+        '''Clean up the cache directory on the cluster. **Warning** deletes all files on the cache workspace.
+        '''
+        self.cache.cleanup()
+
     def _save_file(self, save_function: callable, filename: str, *args, **kw):
         """
         Save data to a file on the project space, fileserver or any other location you have write access from a node.
@@ -647,7 +652,7 @@ class ProjectFileTransfer:
         assert self.temporary_directory_path.exists(), 'Failed to create temporary directory. Please make sure that the cache workspace was initialized correctly by executing "ws_list" on a command line (e.g. execute "!ws_list" in a jupyter notebook). Then delete and re-create the ProjectFileTransfer object.'
 
     def __del__(self):
-        '''Clean up the cache when the object is deleted
+        '''Clean up the temporary directory when the object is deleted
         '''
         try:
             self.temporary_directory.cleanup()
