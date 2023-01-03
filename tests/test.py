@@ -47,7 +47,7 @@ class TestProjectFileTransfer(unittest.TestCase):
         return super().tearDown()
 
     def test_get_file(self):
-        self.pft.get_file(self.fileserver_userdir / 'testdata.npy', self.pft.cache_path / 'testdata.npy')
+        self.pft.copy_file(self.fileserver_userdir / 'testdata.npy', self.pft.cache_path / 'testdata.npy')
         self.assertTrue((self.pft.cache_path / 'testdata.npy').exists())
         numpy_data = np.load(self.pft.cache_path / 'testdata.npy')
         self.assertTrue(np.array_equal(self.testdata, numpy_data))
@@ -55,7 +55,7 @@ class TestProjectFileTransfer(unittest.TestCase):
     def test_put_file(self):
         source_path = self.pft.cache_path / 'testdata.npy'
         np.save(source_path, self.testdata, allow_pickle=False)
-        self.pft.get_file(source_path, self.fileserver_userdir / 'testdata_copied.npy')
+        self.pft.copy_file(source_path, self.fileserver_userdir / 'testdata_copied.npy')
         self.assertIn('testdata_copied.npy', self.pft._list_fileserver_files())
 
     def test_sync_from_fileserver(self):

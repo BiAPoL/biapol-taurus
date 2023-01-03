@@ -369,15 +369,13 @@ class ProjectFileTransfer:
 
     csv_save = pandas_to_csv
 
-    def get_file(self, source_path: Path, destination_path: Path) -> Path:
-        '''get a file from the fileserver or project space
+    def copy_file(self, source_path: Path, destination_path: Path) -> Path:
+        '''Copy a file from/to the fileserver or project space
 
         Parameters
         ----------
         source_path : Path
-            source path on the fileserver
         destination_path : Path
-            target path must be writable by computing nodes, e.g. on a scratch space or the user's home directory
 
         Returns
         -------
@@ -389,11 +387,13 @@ class ProjectFileTransfer:
         exit_code = waitfor(process, quiet=self.quiet)
         if exit_code > 0:
             raise IOError(
-                'Could not get file from fileserver: {}'.format(
+                'Could not copy file: {}'.format(
                     str(source_path)))
         return destination_path
 
-    put_file = get_file
+    get_file = copy_file
+
+    put_file = copy_file
 
     def list_files(self):
         """
@@ -553,7 +553,7 @@ class ProjectFileTransfer:
         target_file = self.temporary_directory_path / source_file.name
 
         # start a process, submitting the copy-job
-        return self.get_file(source_file, target_file)
+        return self.copy_file(source_file, target_file)
 
     def _list_fileserver_files(self, timeout_in_s: float = 30):
         """
