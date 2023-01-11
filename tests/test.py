@@ -137,7 +137,7 @@ class TestProjectFileTransfer(unittest.TestCase):
 
     def test_get_file_fileserver(self):
         cached_file = self.pft._load_file('testdata.npy')
-        self.assertRegex(str(cached_file), r'.*cache/.*')
+        self.assertRegex(str(cached_file), r'.*tmp/.*')
         self.assertTrue(cached_file.exists())
         numpy_data = np.load(cached_file)
         self.assertTrue(np.array_equal(self.testdata, numpy_data))
@@ -151,7 +151,7 @@ class TestProjectFileTransfer(unittest.TestCase):
             quiet=True)
         np.save(self.project_userdir / 'testdata.npy', new_testdata, allow_pickle=False)
         cached_file = pft._load_file('testdata.npy')
-        self.assertRegex(str(cached_file), r'.*cache/.*')
+        self.assertRegex(str(cached_file), r'.*tmp/.*')
         self.assertTrue(cached_file.exists())
         numpy_data = np.load(cached_file)
         self.assertTrue(np.array_equal(new_testdata, numpy_data))
