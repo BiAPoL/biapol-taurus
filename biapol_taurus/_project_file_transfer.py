@@ -615,10 +615,6 @@ class ProjectFileTransfer:
             options.append(str(self.source_dir) + '/')
             options.append(self.cache.name)
         else:
-            # do not sync the temporary directory
-            options.append('--exclude')
-            options.append(self.temporary_directory_path.name)
-
             options.append(self.cache.name + '/')
             options.append(str(self.source_dir))
         confirmation_required = delete or overwrite_newer
@@ -652,9 +648,10 @@ class ProjectFileTransfer:
         '''
         self.cache = CacheWorkspace(path_to_exe=self.workspace_exe_path, expire_in_days=10)
         self.cache_path = Path(self.cache.name)
-        self.temporary_directory = tempfile.TemporaryDirectory(prefix=self.cache.name + '/')
+        self.tmp = CacheWorkspace(path_to_exe=self.workspace_exe_path, id='tmp', expire_in_days=1)
+        self.temporary_directory = tempfile.TemporaryDirectory(prefix=self.tmp.name + '/')
         self.temporary_directory_path = Path(self.temporary_directory.name)
-        assert self.temporary_directory_path.exists(), 'Failed to create temporary directory. Please make sure that the cache workspace was initialized correctly by executing "ws_list" on a command line (e.g. execute "!ws_list" in a jupyter notebook). Then delete and re-create the ProjectFileTransfer object.'
+        assert self.temporary_directory_path.exists(), 'Failed to create temporary directory. Please make sure that the temporary workspace was initialized correctly by executing "ws_list" on a command line (e.g. execute "!ws_list" in a jupyter notebook). Then delete and re-create the ProjectFileTransfer object.'
 
     def __del__(self):
         '''Clean up the temporary directory when the object is deleted
